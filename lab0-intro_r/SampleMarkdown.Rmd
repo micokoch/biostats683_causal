@@ -1,0 +1,42 @@
+---
+title: 'R Assignment #'
+author: "Write your name here"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+In this white space you can write in English; the compiler will not interpret things in white space as \texttt{R} code. 
+
+
+```{r}
+# Anything in gray space is interpreted as R code 
+#(which is why these words are commented out using the # symbol). 
+# Use ```{r} to start gray space and ``` to end it.
+# The gray space is called a code chunk
+2+7
+```
+
+```{r, echo = FALSE}
+# You can change the parameters of the brackets that start code chunks (see line 19) for different formatting options. echo = FALSE makes it so that the code chunk does not appear in your knitted document. 
+4+8
+```
+
+You can also make lists
+
+* One
+
+* Two
+
+* Three
+
+And write equations in \LaTeX:
+
+$Y = \alpha + \beta_1X + \gamma_1D$
+
+Take a look at this RMD cheatsheet for other useful formatting information:
+
+https://www.rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf
+
+
+Try compiling this Rmd file by clicking the "Knit" button and choosing what kind of document you want (e.g., PDF, word document, html). If all of your code works right, it should compile. The compiled document will save to wherever the Rmd file is saved (so if you downloaded this Rmd file, the compiled document will live in your Downloads).
