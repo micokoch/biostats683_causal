@@ -1,0 +1,240 @@
+---
+title: "R Assignment 1: Causal Parameters & Simulations in R"
+author: "Alvaro J. Castro Rivadeneira"
+date: "September 30, 2021"
+output: pdf_document
+---
+
+```{r setup, echo=F}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+library(ggdag)
+library(ggplot2)
+```
+
+
+# 2  Steps 1-2 of the Roadmap
+
+\textbf{Step 1: Causal model representing real knowledge}
+
+(a) Draw the accompanying directed acyclic graph (DAG).
+```{r dag}
+rutf_wt_gain <- dagify(weight_gain ~ RUTF + potable_h20 + inf_dis + Uy,
+                       RUTF ~ potable_h20 + inf_dis + Ua,
+                       inf_dis ~ potable_h20 + Uw2,
+                       potable_h20 ~ Uw1,
+                       Uall ~~ Uy + Ua + Uw2 + Uw1,
+                       labels = c("weight_gain" = "Y",
+                                  "RUTF" = "A",
+                                  "potable_h20" = "W1",
+                                  "inf_dis" = "W2",
+                                  "Uy" = "Uy",
+                                  "Ua" = "Ua",
+                                  "Uw1" = "Uw1",
+                                  "Uw2" = "Uw2",
+                                  "Uall" = "Uall"),
+                       exposure = "RUTF",
+                       outcome = "weight_gain")
+
+ggdag(rutf_wt_gain, text = FALSE, use_labels = "label")
+```
+
+
+(b) Are there any exclusion restrictions?  Recall we are working with recursive (time-ordered) structural causal models. 
+
+We do not have any exclusion restrictions, because we are not leaving variables out of a parent set of the exposure. In our SCM, all endogenous variables have an effect on the outcome.  
+
+(c) Are there any independence assumptions on the distribution of unmeasured factors $\mathbb{P}_U$?
+
+There are no justified restrictions on the set of allowed distributions for the background variables U, which is expressed through their relationship via Uall.  
+
+\textbf{Step 2: Counterfactuals $\&$ causal parameter}
+
+(a) Define the counterfactual outcomes of interest with formal notation and in words. 
+
+The counterffactuals of interest are ($Y_{a} : a \in A = \{0, 1\}$), where $Y_{1}$ is the counterfactual weight gain if, possibly contrary to fact, school aged children received the RUTF supplement; and $Y_{0}$ is the counterfactual weight gain if, possibly contrary to fact, school aged children did not receive the RUTF supplement.
+
+(b) How are counterfactuals derived?
+
+Counterfactuals are derived by setting the exposure (or treatment) A to a given value a, so that A = a.  
+
+(c) Suppose we are interested in the average treatment effect.  Specify the target causal parameter. Use formal notation as well as explain in words. 
+
+The target causal parameter is the average treatment effect of RUTF supplements.  
+
+$$\Psi^{*}(\mathbb{P}^*) = \mathbb{E}^*(Y_{1}) - \mathbb{E}^*(Y_{0})$$
+$$= \mathbb{E}^*[f_{Y}(W1,W2,1,U_{Y})] - \mathbb{E}^*[f_{Y}(W1,W2,0,U_{Y})]$$
+This is the difference in the expected counterfactual weight gain if all school-aged children were given RUTF supplements and the expected counterfactual weight gain if all school-aged children were not given RUTF supplements.  
+
+# 3  A specific data generating process
+
+## 3.1 Closed form evaluation of the target causal parameter
+
+\textbf{Evaluate the target causal parameter $\Psi^*(\mathbf{P}^*)$ in closed form (i.e., by hand) for this data generating process.}  
+
+
+$$
+\Psi^*(\mathbf{P}^*) = \mathbb{E}^*(Y_{1} - Y_{0}) \\
+\mathbb{E}^*[Y_{a}] = \mathbb{E}^*[4*A + 0.7 * W1 - 2 * A * W2 + U_{Y}] \\
+\mathbb{E}^*(Y_{1}) = (4 * 1 + 0.7 * 0.2 - 2 * 1 * logit^{-1}(0.5 * 0.2)) + \mathbb{E}^*[U_{Y}] \\
+= (4.14 - 2 * (e^{0.1} / (1+e^{0.1}))) + \mathbb{E}^*[U_{Y}]
+$$
+```{r math1}
+Ey1=4.14-(2*(exp(0.1)/(1+(exp(0.1)))))
+Ey1
+```
+$$
+\mathbb{E}^*(Y_{0}) = (4 * 0 + 0.7 * 0.2 - 2 * 0 * logit^{-1}(0.5 * 0.2)) + \mathbb{E}^*[U_{Y}] \\
+= 0.14 + \mathbb{E}^*[U_{Y}] \\
+\Psi^*(\mathbf{P}^*) = \mathbb{E}^*(Y_{1} - Y_{0}) = 3.09 - 0.14 \\
+\Psi^*(\mathbf{P}^*) = 2.95
+$$
+
+
+
+## 3.2 Translating this data generating process for $\mathbb{P}^*$ into simulations, generating counterfactual outcomes and evaluating the target causal parameter. 
+
+\textbf{1. First set the seed to 252.}
+
+```{R s3.2q1}
+set.seed(252)
+```
+
+\textbf{2. Set \texttt{n=50,000} as the number of i.i.d. draws from the data generating process.}
+
+```{R s3.2q2}
+n <- 50000
+```
+
+\textbf{3. Simulate the background factors \textit{U}}.  Note the syntax for $\texttt{rnorm}$.
+
+```{R s3.2q3}
+U.W1 <- runif(n, min=0, max=1)
+U.W2 <- runif(n, min=0, max=1)
+U.A <- runif(n, min=0, max=1)
+U.Y <- rnorm(n, mean=0, sd=0.3)
+```
+
+\textbf{4.  Evaluate the structural equations $\mathcal{F}$ to deterministically generate the endogenous nodes $X$.} Recall that the $logit^{-1}$ function is given by the $\texttt{plogis}$ function in $\texttt{R}$.
+
+```{R s3.2q4}
+W1 <- as.numeric(U.W1 < 0.2)
+W2 <- as.numeric(U.W2 < plogis(0.5*W1))
+A <- as.numeric(U.A < plogis(W1*W2))
+Y <- 4*A + 0.7*W1 - 2*A*W2 + U.Y
+
+X <- data.frame(W1, W2, A, Y)
+head(X)
+tail(X)
+summary(X)
+```
+
+\textbf{5. Intervene to set the supplement to RUTF $(A=1)$ and generate counterfactual outcomes $Y_1$ for $n$ units.  Then intervene to set the supplement to the standard $(A=0)$ and generate counterfactual outcomes $Y_0$ for $n$ units.}
+
+```{R s3.2q5}
+Y.1 <- 4*1 + 0.7*W1 - 2*1*W2 + U.Y
+Y.0 <- 4*0 + 0.7*W1 - 2*0*W2 + U.Y
+```
+
+\textbf{6. Create a data frame \texttt{X} to hold the values of the endogenous factors $(W_1, W_2,A,Y)$ and the counterfactual outcomes $Y_1$ and $Y_0$. The rows are the $n$ children and the columns are their characteristics. Use the $\texttt{head}$ and $\texttt{summary}$ to examine the resulting data.  Does the counterfactual value $Y_a$ equal the observed $Y$ when $A=a$?}
+
+```{R s3.2q6}
+X <- data.frame(X, Y.1, Y.0, U.Y)
+head(X)
+tail(X)
+summary(X)
+```
+
+To evaluate whether the counterfactual value $Y_a$ equal the observed $Y$ when $A=a$, we can do the following:
+```{r s3.2q6.b}
+Ya1 <- mean (Y.1 + U.Y)
+Ya1
+```
+As we can see, this is very close to our prediction of 3.09, and so we can say that the counterfactual value $Y_a$ equals the observed $Y$ when $A=a$.  
+
+\textbf{7. Using these simulations, evaluate the causal parameter $\Psi^*(\mathbb{P}^*)$ for this population of 50,000 units.}
+
+```{R s3.2q7}
+Psi.star<- mean(Y.1 - Y.0)
+Psi.star
+```
+
+This is almost identical to our previously calculated value of 2.95, and thus, they match.
+
+\textbf{8. Interpret $\Psi^*(\mathbb{P}^*)$.}
+
+# 4  Defining the target causal parameter with a working MSM
+
+## 4.1 A specific data generating process
+
+\textbf{1. For $n=5,000$ children, generate the background factors $U$ and the pre-intervention covariates $(V, W1, W2)$.  Then set $A=1$ to generate the counterfactual weight gain under RUTF $Y_1$. Likewise, set $A=0$ to generate the counterfactual weight gain under the standard supplement $Y_0$.}
+
+```{R s4.1q1}
+set.seed(252)
+n <- 5000
+
+U.V <- runif(n, min=0, max=3)
+U.W1 <- runif(n, min=0, max=1)
+U.W2 <- runif(n, min=0, max=1)
+U.A <- runif(n, min=0, max=1)
+U.Y <- rnorm(n, mean=0, sd=0.1)
+
+V = 2 + U.V
+W1 <- as.numeric(U.W1 < 0.2)
+W2 <- as.numeric(U.W2 < plogis(0.5*W1))
+A <- as.numeric(U.A < plogis(W1*W2 + (V/5)))
+Y <- 4*A + 0.7*W1 - 2*A*W2 + 0.3*V - 0.3*A*V + U.Y
+
+X <- data.frame(V, W1, W2, A, Y)
+
+Y.1 <- 4*1 + 0.7*W1 - 2*1*W2 + 0.3*V - 0.3*1*V + U.Y
+Y.0 <- 4*0 + 0.7*W1 - 2*0*W2 + 0.3*V - 0.3*0*V + U.Y
+
+X <- data.frame(X, Y.1, Y.0, U.Y)
+head(X)
+tail(X)
+summary(X)
+```
+
+\textbf{2. Create a data frame $\texttt{X.msm}$ consisting of age $V$, the set treatment levels $a$, and the corresponding outcomes $Y_a$.}
+
+$$
+X_{MSM} = (V, a, Y_a) = \left( 
+\begin{matrix} 
+V(1) & 1 & Y_1(1) \\
+V(2) & 1 & Y_1(2) \\
+\vdots & \vdots & \vdots \\
+V(n) & 1 & Y_1(n) \\
+V(1) & 0 & Y_1(1) \\
+V(2) & 0 & Y_1(2) \\
+\vdots & \vdots & \vdots \\
+V(n) & 0 & Y_1(n) \\
+\end{matrix}
+\right)
+$$
+
+where $V(i)$ and $Y_a(i)$ denote the age and counterfactual outcome for the $i^{th}$ subject.  See $\texttt{R}$ lab 1 for a similar example. 
+
+```{R s4.1q2}
+X.msm <- data.frame(V, A, Y)
+head(X.msm)
+```
+
+\textbf{3. Evaluate the target causal parameter.}  We have defined the target parameter using the last square projection (i.e., with the L2 loss function).  Use the $\texttt{glm}$ function to fit the coefficients of the working MSM.  Specifically, regress the counterfactual outcomes $Y_a$ on $a$ and $V$ according to the working MSM.  Be sure to specify the argument: $\texttt{data = X.msm}$.
+
+```{R s4.1q3}
+X.msm <- glm(Y ~ A*V)
+X.msm
+```
+
+\textbf{4. Interpret the results.}  
+
+Broadly, in this linear model, the intervention has a large positive effect on weight gain, whose effect decreases as age increases due to the effect of the interaction between these two.  
+
+\textbf{5.  Bonus:} Plot of the counterfactual outcomes $Y_a$ as a function of age $(V)$ and treatment group $(a)$.
+
+```{R s4.1q5}
+
+# Optional: bonus section 
+
+```

@@ -1,0 +1,240 @@
+---
+title: "R Assignment 3"
+author: "Your Name Here"
+date: "The Date"
+output: pdf_document
+---
+
+```{r echo=F}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+
+# 2 Implement IPTW for a binary exposure.
+
+\textbf{1. Read in and explore the data set $\texttt{RAssign3.csv}$.}
+
+```{R s2q1}
+
+```
+
+\textbf{2. Estimate the propensity score $\mathbb{P}_0(A=1|W)$, which is the conditional probability of owning a dog given the participants characteristics.  Use the following \textit{a priori}-specified parametric regression model:}
+
+$$
+\mathbb{P}_0(A=1|W)=logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4]
+$$
+
+In practice, we would generally use a machine learning algorithm, such as Super Learner (coming next).
+
+```{R s2q2}
+
+```
+
+\textbf{3. Predict each participant's probability of having and not having a dog, given their covariates: $\mathbb{\hat{P}}(A=1|W_i)$ and $\mathbb{\hat{P}}(A=0|W_i)$.}
+
+```{R s2q3}
+
+```
+
+\textbf{4.  Use the \texttt{summary} function to examine the distribution of the predicted probabilities $\mathbb{\hat{P}}(A=1|W_i)$ and $\mathbb{\hat{P}}(A=0|W_i)$. Any cause for concern?}
+
+```{R s2q4}
+
+```
+
+\textbf{5. Create the weights, and comment on the distribution of the weights.}
+
+```{R s2q5}
+
+```
+
+\textbf{6. Evaluate the IPTW estimand by taking the difference of the empirical means of the weighted outcomes:}
+
+$$
+\hat\Psi_{IPTW}(\mathbb{P}_n) = \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i=1)}{\mathbb{\hat{P}}(A=1|W_i)}Y_i - \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i=0)}{\mathbb{\hat{P}}(A=0|W_i)}Y_i
+$$
+
+```{R s2q6}
+
+```
+
+\textbf{7. Arbitrarily truncate the weights at 10 and re-evaluate the IPTW estimand.}
+
+```{R s2q7}
+
+```
+
+\textbf{8. Implement the stabilized IPTW estimator (a.k.a. the modified Horvitz-Thompson estimator):}
+
+$$
+\hat\Psi_{St.IPTW}(\mathbb{P}_n) = \frac{\sum_{i=1}^n\frac{\mathbb{I}(A_i=1)}{\mathbb{\hat{P}}(A=1|W_i)}Y_i}{\sum_{i=1}^n\frac{\mathbb{I}(A_i=1)}{\mathbb{\hat{P}}(A=1|W_i)}} - \frac{\sum_{i=1}^n\frac{\mathbb{I}(A_i=0)}{\mathbb{\hat{P}}(A=0|W_i)}Y_i}{\sum_{i=1}^n\frac{\mathbb{I}(A_i=0)}{\mathbb{\hat{P}}(A=0|W_i)}}
+$$
+
+```{R s2q8}
+
+```
+
+\textbf{9. For comparision, also implement the unadjusted estimator.}
+
+$$
+\begin{aligned}
+\hat\Psi_{unadj}(\mathbb{P}_n) &= \hat{\mathbb{E}}(Y|A=1) - \hat{\mathbb{E}}(Y|A=0) \\
+&= \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i = 1)}{\hat{\mathbb{P}}(A=1)}Y_i - \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i = 0)}{\hat{\mathbb{P}}(A=0)}Y_i
+\end{aligned}
+$$
+
+```{R s2q9}
+
+```
+
+\textbf{10. \textit{Bonus:} Implement a simple substitution estimator (a.k.a. parameteric G-computation) of $\Psi(\mathbb{P}_0)$ using the following parametric regression to estimate $\mathbb{E}_0(Y|A,W1,W2,W3,W4)$}:
+
+$$
+\mathbb{E}(Y|A,W1,W2,W3,W4) = logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4 + \beta_5A]
+$$
+
+```{R s2q10}
+
+```
+
+\textbf{11. Comment on the results.}
+
+# 3 Extensions to handle missingness
+
+\textbf{1. Import and explore the modified data set \texttt{RAssign3.missing.csv}.}
+
+```{R s3q1}
+
+```
+
+\textbf{2.  Estimate the propensity score $\mathbb{P}_0(A=1 | W)$, which is the conditional probability of owning a dog, given the participant's characteristics.  Use the following \textit{a priori}-specified parametric regression model:}
+
+$$
+\mathbb{P}_0(A=1|W)=logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4]
+$$
+
+```{R s3q2}
+
+```
+
+\textbf{3. Predict each participant's probability of having and not having a dog, given their covariates: $\hat{\mathbb{P}}(A=1|W_i)$ and  $\hat{\mathbb{P}}(A=0|W_i)$.}
+
+```{R s3q3}
+
+```
+
+\textbf{4.  Estimate the probability of being measured, given the exposure, sex, age, baseline cardiovascular health, and SES: $\mathbb{P}_0(\Delta = 1 | A,W)$.  Use the following \textit{a priori}-specified parametric regression model:}
+
+$$
+\mathbb{P}_0(\Delta=1|A,W1,W2) = logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4 + \beta_5A]
+$$
+
+```{R s3q4}
+
+```
+
+\textbf{5. Predict each participant's probability of being measured, given their observed past $\hat{\mathbb{P}}(\Delta=1|A_i, W_i)$}.
+
+```{R s3q5}
+
+```
+
+\textbf{6. Create the weights - now accounting for confounding and incomplete measurement.}
+
+(a) Create a vector \texttt{wt1} with numerator as indicator of having a dog and being measured, and with denominator as the estimated probability of having a dog, given the adjustment set, times the estimated probability of being measured, given the observed past:
+
+$$
+wt1_i = \frac{\mathbb{I}(A_i=1,\Delta_i = 1)}{\hat{\mathbb{P}}(A=1|W_i)\times\hat{\mathbb{P}}(\Delta=1|A_i,W_i)}
+$$
+
+```{R s3q6a}
+
+```
+
+(b) Create a vector \texttt{wt0} with numerator as indicator of not having a dog and being measured, and with denominator as the estimated probability of not having a dog, given the adjustment set, times the estimated probability of being measured, given the observed past:
+
+$$
+wt0_i = \frac{\mathbb{I}(A_i=0,\Delta_i = 1)}{\hat{\mathbb{P}}(A=0|W_i)\times\hat{\mathbb{P}}(\Delta=1|A_i,W_i)}
+$$
+
+```{R s3q6b}
+
+```
+
+(c) Comment on the distribution of the weights.
+
+\textbf{7. Evaluate the IPTW estimand by taking the difference of the empirical means of the weighted outcomes:}
+
+$$
+\hat{\Psi}_{IPTW}(\mathbb{P}_n) = \frac{1}{n} \sum_{i=1}^n\frac{\mathbb{I}(A_i=1, \Delta_i=1)}{\hat{\mathbb{P}}(A=1|W_i)\hat{\mathbb{P}}(\Delta=1|A_i,W_i)}Y_i - \frac{1}{n} \sum_{i=1}^n\frac{\mathbb{I}(A_i=0, \Delta_i=1)}{\hat{\mathbb{P}}(A=0|W_i)\hat{\mathbb{P}}(\Delta=1|A_i,W_i)}Y_i
+$$
+
+```{R s3q7}
+
+```
+
+\textbf{8. Arbitrarily truncate the weights at 10 and evaluate the IPTW estimand.}
+
+```{R s3q8}
+
+```
+
+\textbf{9. Implement the stabilized IPTW estimator (a.k.a. the modified Horvitz-Thompson estimator).}
+
+```{R s3q9}
+
+```
+
+\textbf{10. For comparison, also implement the unadjusted estimator.}
+
+$$
+\begin{aligned}
+\hat{\Psi}_{unadj}(\mathbb{P}_n) &= \hat{\mathbb{E}}(Y|A=1,\Delta=1)-\hat{\mathbb{E}}(Y|A=0,\Delta=1) \\
+&=\frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i=1,\Delta_i=1)}{\hat{\mathbb{P}}(A=1,\Delta=1)}Y_i - \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i=0,\Delta_i=1)}{\hat{\mathbb{P}}(A=0,\Delta=1)}Y_i
+\end{aligned}
+$$
+
+```{R s3q10}
+
+```
+
+\textbf{11. \textit{Bonus:} Implement a simple substitution estimator (a.k.a. parametric G-computation) of $\Psi(\mathbb{P_0})$, where in the first step the following parametric regression is used to estimate $\mathbb{E}_0(Y|A, W1, W2, W3, W4)$ - \textit{among those who are measured:}}
+
+$$
+\mathbb{E}(Y|A, \Delta=1, W1,W2,W3,W4) = logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4 + \beta5A]
+$$
+
+\texttt{outcomereg <- glm(Y ~ A + W1 + W2 + W3 + W4, data=ObsData[ObsData\$Delta==1,], family="binomial")}
+
+```{R s3q11}
+
+```
+
+\textbf{12. Comment on the results.}
+
+# 4 Improving IPTW
+
+\textbf{1. Run the code given in Rassign3\_modifiedIPTW.R and report how the standard IPTW and modified Horvitz-Thompson estimators perform in terms of bias, variance, and MSE over 2000 simulations each with sample size 1000.  Which estimator would you use in practice?}
+
+```{R s4q1}
+
+```
+
+\textbf{2. Look at the IPTW column in the \texttt{est} matrix.  What do you notice about the IPTW estimates across these 2000 Monte Carlo draws?} \texttt{Hint:} Recall the values that $Y$ can take.
+
+```{R s4q2}
+
+```
+
+\textbf{3. What is the variance of a random variable $X$ with $\mathbb{P}(X=0)=1/2$ and $\mathbb{P}(X=1)=1/2$?}
+
+\textbf{4. What is the variance of a random variable $X2$ with $Pr(X2=0)=1/2$ and $Pr(X2=1000)=1/2$?}
+
+\texttt{Hint:} $X2 = 1000 \times X$
+
+\textbf{5. How are the above two calculations relevant to improving the IPTW estimator in this problem? We currently have an estimator that is an empirical mean of variables like those in Question 4.  What transformations of the outcome $Y$ would make your estimator behave more like an empirical mean of variables like those in Question 3?}
+
+\textbf{6. \textit{Graded leniently:} Write down an estimator $\hat{\Psi}_{my.est}$ which applies the ideas of the previous three questions into an estimator.  There's no need to give the best possible estimator, but you should give an estimator that outperforms the IPTW estimator by a significant margin (i.e., does as or almost as well as the modified Horvitz-Thompson estimator in terms of bias/variance/MSE).}
+
+\textbf{7. \textit{Graded leniently:} Code your estimator and replace the NA on the line $\texttt{my.est = NA}$ with the estimator you defined in the previous question.  Report the bias/variance/MSE of your estimator over the 2000 Monte Carlo draws.}

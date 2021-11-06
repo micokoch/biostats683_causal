@@ -1,0 +1,244 @@
+---
+title: "Discussion Assignment 2: Causal Parameters & Simulations in R"
+author: "Alvaro J. Castro Rivadeneira"
+date: "October 15, 2021"
+output: pdf_document
+---
+
+```{r setup, echo=F}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+library(tidyverse)
+library(ggdag)
+library(ggplot2)
+library(colorBlindness)
+library(here)
+```
+
+
+# 4
+
+```{r dag}
+circum_hiv <- dagify(y ~ w + a + z + U,
+                     z ~ w + a + U,
+                     a ~ w + U,
+                     w ~ U,
+                     labels = c("y" = "HIV status",
+                                "a" = "male circumcision",
+                                "z" = "STI & sexual behavior",
+                                "w" = "tribe & religion",
+                                "U" = "Unmeasured all"),
+                     exposure = "a",
+                     outcome = "y",
+                     coords = list(x = c(y = 5, a = 2, w = 1, z = 3, U = 3),
+                                   y = c(y = 1, a = 1, w = 2, z = 2, U = 3))) %>% 
+  tidy_dagitty() %>% 
+  dplyr::mutate(Variable = case_when(
+    name == "y" ~ "HIV Status",
+    name == "a" ~ "Male Circumcision",
+name == "z" ~ "STI & Sexual Behavior",
+    name == "w" ~ "Tribe & Religion",
+    name == "U" ~ "Unmeasured (all)"))
+
+circum_hiv_dag <- circum_hiv %>% 
+  ggplot(aes(
+    x = x,
+    y = y,
+    xend = xend,
+    yend = yend
+  )) +
+  geom_dag_point(aes(color = Variable)) +
+  geom_dag_edges() +
+  geom_dag_text() +
+  theme_dag() +
+  scale_color_viridis_d()+
+  ggtitle("Causal DAG \nEffect of male circumcision on risk of HIV acquisition") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  guides(color = guide_legend(override.aes = list(size = 8)))
+
+circum_hiv_dag
+
+ggsave(here("r_labs/disc_hw2/circum_hiv_dag.jpg"), width = 8, height = 6, units = "in")
+
+# ggdag(circum_hiv_dag, text = FALSE, use_labels = "label")
+```
+
+
+```{r dag 2}
+circum_hiv_2 <- dagify(y ~ w + a + z + Uy,
+                     z ~ w + a + U,
+                     a ~ w + U,
+                     w ~ U,
+                     labels = c("y" = "HIV status",
+                                "a" = "male circumcision",
+                                "z" = "STI & sexual behavior",
+                                "w" = "tribe & religion",
+                                "U" = "Unmeasured w,a,z",
+                                "Uy" = "Unmeasured y"),
+                     exposure = "a",
+                     outcome = "y",
+                     coords = list(x = c(y = 5, a = 2, w = 1, z = 3, U = 3, Uy = 5),
+                                   y = c(y = 1, a = 1, w = 2, z = 2, U = 3, Uy = 3))) %>% 
+  tidy_dagitty() %>% 
+  dplyr::mutate(Variable = case_when(
+    name == "y" ~ "HIV Status",
+    name == "a" ~ "Male Circumcision",
+    name == "z" ~ "STI & Sexual Behavior",
+    name == "w" ~ "Tribe & Religion",
+    name == "U" ~ "Unmeasured for w, a, z",
+    name == "Uy" ~ "Unmeasured for y"))
+
+circum_hiv_dag_2 <- circum_hiv_2 %>% 
+  ggplot(aes(
+    x = x,
+    y = y,
+    xend = xend,
+    yend = yend
+  )) +
+  geom_dag_point(aes(color = Variable)) +
+  geom_dag_edges() +
+  geom_dag_text() +
+  theme_dag() +
+  scale_color_viridis_d() +
+  ggtitle("Identifiable DAG \nEffect of male circumcision on risk of HIV acquisition") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  guides(color = guide_legend(override.aes = list(size = 8)))
+
+circum_hiv_dag_2
+
+ggsave(here("r_labs/disc_hw2/circum_hiv_dag_2.jpg"), width = 8, height = 6, units = "in")
+
+w_adj_dag_0 <- ggdag_adjustment_set(circum_hiv_2, exposure = "a", outcome = "y", type = "all") +
+  theme_dag() +
+  labs(title = "Q. 4: DAG requiring W adjustment") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+w_adj_dag_0
+
+ggsave(here("r_labs/disc_hw2/w_adj_dag_0.jpg"), width = 8, height = 6, units = "in")
+
+```
+
+```{r dag 3}
+circum_hiv_3 <- dagify(y ~ w + a + z + Uy,
+                     z ~ w + a + U,
+                     a ~ w + Ua,
+                     w ~ U,
+                     labels = c("y" = "HIV status",
+                                "a" = "male circumcision",
+                                "z" = "STI & sexual behavior",
+                                "w" = "tribe & religion",
+                                "U" = "Unmeasured w,z",
+                                "Ua" = "Unmeasured a",
+                                "Uy" = "Unmeasured y"),
+                     exposure = "a",
+                     outcome = "y",
+                     coords = list(x = c(y = 5, a = 2, w = 1, z = 3, U = 3, Ua = 2, Uy = 5),
+                                   y = c(y = 1, a = 1, w = 2, z = 2, U = 3, Ua = 3, Uy = 3))) %>% 
+  tidy_dagitty() %>% 
+  dplyr::mutate(Variable = case_when(
+    name == "y" ~ "HIV Status",
+    name == "a" ~ "Male Circumcision",
+    name == "z" ~ "STI & Sexual Behavior",
+    name == "w" ~ "Tribe & Religion",
+    name == "U" ~ "Unmeasured for w, z",
+    name == "Ua" ~ "Unmeasured for a",
+    name == "Uy" ~ "Unmeasured for y"))
+
+circum_hiv_dag_3 <- circum_hiv_3 %>% 
+  ggplot(aes(
+    x = x,
+    y = y,
+    xend = xend,
+    yend = yend
+  )) +
+  geom_dag_point(aes(color = Variable)) +
+  geom_dag_edges() +
+  geom_dag_text() +
+  theme_dag() +
+  scale_color_viridis_d() +
+  ggtitle("Q. 4: DAG requiring W adjustment
+          \nEffect of male circumcision on risk of HIV acquisition") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  guides(color = guide_legend(override.aes = list(size = 8)))
+
+circum_hiv_dag_3
+
+ggsave(here("r_labs/disc_hw2/circum_hiv_dag_3.jpg"), width = 8, height = 6, units = "in")
+
+w_adj_dag <- ggdag_adjustment_set(circum_hiv_3, exposure = "a", outcome = "y", type = "minimal") +
+  theme_dag() +
+  labs(title = "Q. 4: DAG requiring W adjustment") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+w_adj_dag
+
+ggsave(here("r_labs/disc_hw2/w_adj_dag.jpg"), width = 8, height = 6, units = "in")
+
+
+```
+
+```{r dag 4}
+circum_hiv_4 <- dagify(y ~ w + a + z + Uy,
+                     z ~ U,
+                     a ~ w + U,
+                     w ~ Uw,
+                     labels = c("y" = "HIV status",
+                                "a" = "male circumcision",
+                                "z" = "STI & sexual behavior",
+                                "w" = "tribe & religion",
+                                "U" = "Unmeasured a,z",
+                                "Uw" = "Unmeasured w",
+                                "Uy" = "Unmeasured y"),
+                     exposure = "a",
+                     outcome = "y",
+                     coords = list(x = c(y = 5, a = 2, w = 1, z = 3, U = 3, Uw = 1, Uy = 5),
+                                   y = c(y = 1, a = 1, w = 2, z = 2, U = 3, Uw = 3, Uy = 3))) %>% 
+  tidy_dagitty() %>% 
+  dplyr::mutate(Variable = case_when(
+    name == "y" ~ "HIV Status",
+    name == "a" ~ "Male Circumcision",
+    name == "z" ~ "STI & Sexual Behavior",
+    name == "w" ~ "Tribe & Religion",
+    name == "U" ~ "Unmeasured for a, z",
+    name == "Uw" ~ "Unmeasured for w",
+    name == "Uy" ~ "Unmeasured for y"))
+
+circum_hiv_dag_4 <- circum_hiv_4 %>% 
+  ggplot(aes(
+    x = x,
+    y = y,
+    xend = xend,
+    yend = yend
+  )) +
+  geom_dag_point(aes(color = Variable)) +
+  geom_dag_edges() +
+  geom_dag_text() +
+  theme_dag() +
+  scale_color_viridis_d() +
+  ggtitle("Q. 4: DAG requiring W, Z adjustment
+          \nEffect of male circumcision on risk of HIV acquisition") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+  guides(color = guide_legend(override.aes = list(size = 8)))
+
+circum_hiv_dag_4
+
+ggsave(here("r_labs/disc_hw2/circum_hiv_dag_4.jpg"), width = 8, height = 6, units = "in")
+
+wz_adj_dag <- ggdag_adjustment_set(circum_hiv_4, exposure = "a", outcome = "y", type = "minimal") +
+  theme_dag() +
+  labs(title = "Q. 4: DAG requiring W, Z adjustment") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+wz_adj_dag
+
+ggsave(here("r_labs/disc_hw2/wz_adj_dag.jpg"), width = 8, height = 6, units = "in")
+
+
+```
+
+
+
+
+
+

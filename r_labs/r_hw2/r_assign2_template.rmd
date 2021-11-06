@@ -1,0 +1,142 @@
+---
+title: "R Assignment 2"
+author: "Your Name Here"
+date: "The Date"
+output: pdf_document
+---
+
+```{r echo=F}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+# 2 Roadmap Questions
+
+\textbf{1. Step 3: Observed data $\&$ link to causal model:} Suppose the observed date consist of $n$ independent, identically distributed (i.i.d.) draws of the random variable $O = (W1, W2, A, Y)$.
+
+(a) Specify the link between the SCM and the observed data.
+
+(b) What restrictions, if any, does the SCM place on the set of allowed distributions for the observed data?
+
+(c) What notation do we use to denote the true (but unknown) distribution of the observed data and the statistical model?
+
+\textbf{2. Step 4-5: Identification $\&$ statistical estimand:}
+
+(a) Using the backdoor criterion, assess identifiability.
+
+(b) If the target causal parameter is not identified, under what assumptions would it be?
+
+(c) Specify the target parameter of the observed data distribution (i.e., the statistical estimand). Interpret it.
+
+(d) What is the relevant positivity assumption? Is it reasonable here?
+
+# 3 A specific data generating process
+
+\textbf{1. Evaluate the positivity assumption in closed form for this data generating process.}
+
+In this particular data generating system (one of many compatible with the SCM), the conditional probability of receiving the intervention given the adjustment variables is 
+
+$$
+\mathbb{P}_0(A=1|W1,W2) = logit^{-1}(-0.5 + W1 - 1.5*W2)
+$$
+\textbf{2. \textit{Bonus (Optional):} Evaluate the statistical estimand $\Psi(\mathbb{P_0})$ in closed form for this data generating process.}
+
+# 4 Translate this data generating process into simulations.
+
+\textbf{1. First set the seed to 252.}
+
+```{R s4q1}
+
+```
+
+\textbf{2. Write a function to generate the observed data $O = (W1, W2, A, Y)$ and the counterfactual outcomes $(Y_1, Y_0)$.} Recall we generate the counterfactual outcome $Y_1$ by intervening to set the exposure to the combination package $(A=1)$, and we generate the counterfactual outcomes $Y_0$ by intervening to set the exposure to the standard of care $(A=0)$.  Also recall $logit^{-1}$ function is given by the $\texttt{plogis}$ function in $\texttt{R}$.
+
+```{R s4q2}
+
+```
+
+\textbf{3.  Suppose our target population consists of 100,000 people.  Set the number of draws $n=100,000$.  Use your function to generate $n$ i.i.d. observations.}
+
+```{R s4q3}
+
+```
+
+\textbf{4. Does the counterfactual outcome $Y_a$ equal the observed outcome $Y$ when the observed exposure is $A=a$?}
+
+```{R s4q4}
+
+```
+
+\textbf{5. \textit{Bonus:} Evaluate and interpret the causal parameter $\Psi^*(\mathbb{P}^*)$}.
+
+# 5 The simple substitution estimator based on the G-Computation formula
+
+\textbf{1.  Set the number of iterations $\texttt{R}$ to 500 and the number of observations $n$ to 200.  Do \textit{not} reset the seed.}
+
+```{R s5q1}
+
+```
+
+\textbf{2.  Create a $R=500$ by 4 matrix $\texttt{estimates}$ to hold the resulting point estimates obtained at each iteration.} The rows will correspond to iterations and the columns to different estimators. 
+
+```{R s5q2}
+
+# Hint: the following code creates a matrix filled with NA of size 10 by 10
+# estimates <- matrix(NA, nrow=10, ncol=10)
+
+```
+
+\textbf{3. Inside a \texttt{for} loop from $\texttt{r}$ equals 1 to $\texttt{R}$ (500), do the following.} \textit{Note: see RAssign2.pdf for further detailed instructions and hints.}
+
+```{R s5q3}
+
+# (a) Use your function from Part 4 to generate n i.i.d. observations. Subset the resulting data frame to only include the observed data O = (W1, W2, A, Y), and name it Obs.
+
+# (b) Copy the data set Obs into two new data frames txt and control.  Then set $A=1 for all units in txt and set $A=0$ for all units in the control.
+
+# (c) Implement the simple substitution estimator (i.e., parametric G-computation) using each one of the four regression specifications above. 
+
+# (d) Assign the resulting point estimates as a row in the matrix estimates.
+
+```
+
+# 6 Performance of the estimators.
+
+\textbf{1. What is the average point estimate from each?}
+
+```{R s6q1}
+
+```
+
+\textbf{2. Estimate the bias of each estimator.}  For each estimator, average the difference between point estimate $psi_n$ and the truth $psi_0$. 
+
+```{R s6q2}
+
+```
+
+\textbf{3. Estimate the variance of each estimator.}
+
+```{R s6q3}
+
+```
+
+\textbf{4. Estimate the mean squared error of each estimator.}
+
+```{R s6q4}
+
+```
+
+\textbf{5. Briefly comment on the performance of the estimators in this simulation setting. Which estimator has the lowest MSE over the $R=500$ iterations? Are you surprised?}
+
+# 7 Identifying the mean counterfactual outcome under a dynamic intervention
+
+\textbf{1. Explain why (1) holds using properties of conditional expectations.}
+
+\textbf{2. Explain why (2) holds using properties of conditional expectations and the fact that $Y_d \perp A|W1, W2$}. Note: No need to explain $Y_d \perp A|W1,W2$ in the context of the study since you have already discussed the assumptions need for the backdoor criterion to hold, and the backdoor criterion implies $Y_d \perp A|W1,W2$. 
+
+\textbf{3. Explain why (3) holds.}
+
+\textbf{4. Explain why (4) holds.}
+
+
+
