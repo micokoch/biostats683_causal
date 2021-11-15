@@ -41,7 +41,7 @@ for(r in 1:R){
 	# Modified Horvitz-Thompson estimate
 	HT.est <- mean(A/pscore*Y)/mean(A/pscore)
 	# You should replace the NA below with your own estimator
-	my.est <- NA
+	my.est <- mean(A/pscore*(Y-1000))+1000
 	# Put the estimates into the est matrix
 	est[r,] <- c(IPTW.est, HT.est, my.est)
 }

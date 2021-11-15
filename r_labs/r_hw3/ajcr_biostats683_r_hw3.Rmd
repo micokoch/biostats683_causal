@@ -1,0 +1,485 @@
+---
+title: "R Assignment 3"
+author: "Alvaro J. Castro Rivadeneira"
+date: "November 12, 2021"
+output: pdf_document
+---
+
+```{r echo=F}
+library(knitr)
+library(tidyverse)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+
+# 2 Implement IPTW for a binary exposure.
+
+\textbf{1. Read in and explore the data set $\texttt{RAssign3.csv}$.}
+
+```{R s2q1}
+# Read in data
+ObsData <- read.csv('RAssign3.csv')
+head(ObsData)
+summary(ObsData)
+# 2,500 participants aged 50-75
+# CV health range: -3.69 to 3.78, SES range: -3.49 to 3.61
+table(ObsData[,c('W1', 'W2', 'A')])
+```
+
+\textbf{2. Estimate the propensity score $\mathbb{P}_0(A=1|W)$, which is the conditional probability of owning a dog given the participants characteristics.  Use the following \textit{a priori}-specified parametric regression model:}
+
+$$
+\mathbb{P}_0(A=1|W)=logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4]
+$$
+
+In practice, we would generally use a machine learning algorithm, such as Super Learner (coming next).
+
+```{R s2q2}
+# Run a logistic regression to estimate the treatment mechanism P(A|W)
+prob.AW.reg <- glm(A ~ W1 +W2 + W3 + W4, family="binomial", data=ObsData)
+prob.AW.reg
+```
+
+\textbf{3. Predict each participant's probability of having and not having a dog, given their covariates: $\mathbb{\hat{P}}(A=1|W_i)$ and $\mathbb{\hat{P}}(A=0|W_i)$.}
+
+```{R s2q3}
+# Predicted probability of having a dog, given the obs cov P(A=1|W)
+prob.1W <- predict(prob.AW.reg, type= "response")
+# Predicted probability of not having a dog, given the obs cov P(A=0|W)
+prob.0W <- 1 - prob.1W
+```
+
+\textbf{4.  Use the \texttt{summary} function to examine the distribution of the predicted probabilities $\mathbb{\hat{P}}(A=1|W_i)$ and $\mathbb{\hat{P}}(A=0|W_i)$. Any cause for concern?}
+
+```{R s2q4}
+# look at the distribution of predicted probabilities
+summary(prob.1W)
+hist(prob.1W)
+summary(prob.0W)
+hist(prob.0W)
+```
+
+There are no evident positivity violations in our data set (as was already seen in question 1), although results indicate that given the covariates, it is more likely a participant does not have a dog. No major cause for concern.  
+
+\textbf{5. Create the weights, and comment on the distribution of the weights.}
+
+```{R s2q5}
+# Create the weights
+wt1 <- as.numeric(ObsData$A==1)/prob.1W
+wt0 <- as.numeric(ObsData$A==0)/prob.0W
+summary(wt1)
+summary(wt0)
+hist(wt1)
+hist(wt0)
+big.wt1 <- wt1[wt1 > 10]
+big.wt0 <- wt0[wt0 > 10]
+hist(big.wt1)
+hist(big.wt0)
+bigger.wt1 <- wt1[wt1 > 20]
+hist(bigger.wt1)
+```
+
+The weights for participants without a dog seem mostly reasonable, with the highest weight being ~29, in a set of 2,500. Moreover, 75% of weights are under 1.22. There are only eight participants with weights greater than ten, with only one very high weight ~29. Nonetheless, for participants with a dog, there are more extreme weights. Although 75% of weights are under 1.19, there are twenty-one participants who have weights greater than ten, and nine with weights greater than twenty. At least one participant is being upweighted by ~178, which is very big, and may lead to poor finite sample performance.  
+
+\textbf{6. Evaluate the IPTW estimand by taking the difference of the empirical means of the weighted outcomes:}
+
+$$
+\hat\Psi_{IPTW}(\mathbb{P}_n) = \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i=1)}{\mathbb{\hat{P}}(A=1|W_i)}Y_i - \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i=0)}{\mathbb{\hat{P}}(A=0|W_i)}Y_i
+$$
+
+```{R s2q6}
+IPTW <- mean(wt1*ObsData$Y) - mean(wt0*ObsData$Y)
+IPTW
+iptw <- mean((wt1-wt0)*ObsData$Y)
+iptw
+```
+
+The IPTW estimate of $\Psi(\mathbb{P}_0)$ is -24.2%, which can be interpreted as the estimated marginal differences in the mortality risk during 12 years, associated with having a dog, after controlling for the covariates.  
+
+\textbf{7. Arbitrarily truncate the weights at 10 and re-evaluate the IPTW estimand.}
+
+```{R s2q7}
+# I already found that there are 21 weights under the exposure, and 8 weights under no exposure, which are greater than ten.
+wt1.trunc <- wt1
+wt1.trunc[wt1.trunc > 10] <- 10
+wt0.trunc <- wt0
+wt0.trunc[wt0.trunc > 10] <- 10
+# evaluate the IPTW estimand with the truncated weights
+mean(wt1.trunc*ObsData$Y) - mean(wt0.trunc*ObsData$Y)
+```
+
+The IPTW estimate of $\Psi(\mathbb{P}_0)$ is now -32.0%. By bounding the predicted probabilities, our estimator of the propensity score $\mathbb{P}_0(A=1|W)$ is not consistent, and thus the IPTW will be biased.  
+
+\textbf{8. Implement the stabilized IPTW estimator (a.k.a. the modified Horvitz-Thompson estimator):}
+
+$$
+\hat\Psi_{St.IPTW}(\mathbb{P}_n) = \frac{\sum_{i=1}^n\frac{\mathbb{I}(A_i=1)}{\mathbb{\hat{P}}(A=1|W_i)}Y_i}{\sum_{i=1}^n\frac{\mathbb{I}(A_i=1)}{\mathbb{\hat{P}}(A=1|W_i)}} - \frac{\sum_{i=1}^n\frac{\mathbb{I}(A_i=0)}{\mathbb{\hat{P}}(A=0|W_i)}Y_i}{\sum_{i=1}^n\frac{\mathbb{I}(A_i=0)}{\mathbb{\hat{P}}(A=0|W_i)}}
+$$
+
+```{R s2q8}
+# Stabilized IPTW estimator - Modified Horvitz-Thompson estimator
+mean(wt1*ObsData$Y)/mean(wt1) - mean(wt0*ObsData$Y)/mean(wt0)
+# this is equivalent to
+sum(wt1*ObsData$Y)/sum(wt1) - sum(wt0*ObsData$Y)/sum(wt0)
+```
+
+The stabilized IPTW estimate of $\Psi(\mathbb{P}_0)$ is now -24.5%.
+
+\textbf{9. For comparision, also implement the unadjusted estimator.}
+
+$$
+\begin{aligned}
+\hat\Psi_{unadj}(\mathbb{P}_n) &= \hat{\mathbb{E}}(Y|A=1) - \hat{\mathbb{E}}(Y|A=0) \\
+&= \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i = 1)}{\hat{\mathbb{P}}(A=1)}Y_i - \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i = 0)}{\hat{\mathbb{P}}(A=0)}Y_i
+\end{aligned}
+$$
+
+```{R s2q9}
+ttx1 <- filter(ObsData, A == 1)
+ttx0 <- filter(ObsData, A == 0)
+unadj <- mean(ttx1$Y) - mean(ttx0$Y)
+unadj
+```
+
+The unadjusted estimator is -41.1%, which is considerably larger in magnitude than what was estimated with IPTW.
+
+\textbf{10. \textit{Bonus:} Implement a simple substitution estimator (a.k.a. parameteric G-computation) of $\Psi(\mathbb{P}_0)$ using the following parametric regression to estimate $\mathbb{E}_0(Y|A,W1,W2,W3,W4)$}:
+
+$$
+\mathbb{E}(Y|A,W1,W2,W3,W4) = logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4 + \beta_5A]
+$$
+
+```{R s2q10}
+# Estimate the conditional mean of Y given the treatment A and covariates W
+reg.model<- glm(Y ~ A + W1 + W2 + W3 + W4, family="binomial", data=ObsData)
+reg.model
+# Copy the original dataset O into two new dataframes txt and control
+txt <- control <- ObsData
+# set A=1 in the txt dataframe and A=0 in control dataframe
+txt$A <- 1
+control$A <- 0
+# Predict the mean outcome for each individual in the sample under the treatment
+predictY.txt <- predict(reg.model, newdata = txt, type='response')
+# Predict the mean outcome for each individual in the sample under the control
+predictY.control <- predict(reg.model, newdata = control, type='response')
+# Observe results
+head(cbind(ObsData, predictY.txt, predictY.control))
+tail(cbind(ObsData, predictY.txt, predictY.control))
+# Take the mean of the predicted outcomes to average over the distribution of Ws
+mean(predictY.txt - predictY.control)
+```
+
+\textbf{11. Comment on the results.}
+
+The estimated difference in the mortality risk during 12 years, associated with having a dog, averaged with respect to the distribution of the covariates, is -28.8%. This is similar to, although slightly larger in magnitude, than the difference found using IPTW.  
+
+# 3 Extensions to handle missingness
+
+\textbf{1. Import and explore the modified data set \texttt{RAssign3.missing.csv}.}
+
+```{R s3q1}
+# Read in data
+MissData <- read.csv('RAssign3.missing.csv')
+head(MissData)
+summary(MissData)
+# 2,500 participants aged 50-75
+# CV health range: -3.69 to 3.78, SES range: -3.49 to 3.61
+table(MissData[,c('W1', 'W2', 'A')])
+```
+
+\textbf{2.  Estimate the propensity score $\mathbb{P}_0(A=1 | W)$, which is the conditional probability of owning a dog, given the participant's characteristics.  Use the following \textit{a priori}-specified parametric regression model:}
+
+$$
+\mathbb{P}_0(A=1|W)=logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4]
+$$
+
+```{R s3q2}
+# Run a logistic regression to estimate the treatment mechanism P(A|W)
+prob.AW.reg <- glm(A ~ W1 +W2 + W3 + W4, family="binomial", data=MissData)
+prob.AW.reg
+```
+
+\textbf{3. Predict each participant's probability of having and not having a dog, given their covariates: $\hat{\mathbb{P}}(A=1|W_i)$ and  $\hat{\mathbb{P}}(A=0|W_i)$.}
+
+```{R s3q3}
+# Predicted probability of having a dog, given the obs cov P(A=1|W)
+prob.1W <- predict(prob.AW.reg, type= "response")
+# Predicted probability of not having a dog, given the obs cov P(A=0|W)
+prob.0W <- 1 - prob.1W
+```
+
+\textbf{4.  Estimate the probability of being measured, given the exposure, sex, age, baseline cardiovascular health, and SES: $\mathbb{P}_0(\Delta = 1 | A,W)$.  Use the following \textit{a priori}-specified parametric regression model:}
+
+$$
+\mathbb{P}_0(\Delta=1|A,W1,W2) = logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4 + \beta_5A]
+$$
+
+```{R s3q4}
+# Run a logistic regression to estimate the treatment mechanism P(D|A,W)
+prob.DAW.reg <- glm(Delta ~ A + W1 + W2 + W3 + W4, family="binomial", data=MissData)
+prob.DAW.reg
+```
+
+\textbf{5. Predict each participant's probability of being measured, given their observed past $\hat{\mathbb{P}}(\Delta=1|A_i, W_i)$}.
+
+```{R s3q5}
+# Predicted probability of having a dog, given the obs cov P(A=1|W)
+prob.1AW <- predict(prob.DAW.reg, type= "response")
+# Predicted probability of not having a dog, given the obs cov P(A=0|W)
+prob.0AW <- 1 - prob.1AW
+```
+
+\textbf{6. Create the weights - now accounting for confounding and incomplete measurement.}
+
+(a) Create a vector \texttt{wt1} with numerator as indicator of having a dog and being measured, and with denominator as the estimated probability of having a dog, given the adjustment set, times the estimated probability of being measured, given the observed past:
+
+$$
+wt1_i = \frac{\mathbb{I}(A_i=1,\Delta_i = 1)}{\hat{\mathbb{P}}(A=1|W_i)\times\hat{\mathbb{P}}(\Delta=1|A_i,W_i)}
+$$
+
+```{R s3q6a}
+wt1 <- as.numeric(MissData$A==1 & MissData$Delta==1)/(prob.1W*prob.1AW)
+summary(wt1)
+hist(wt1)
+big.wt1 <- wt1[wt1 > 10]
+hist(big.wt1)
+bigger.wt1 <- wt1[wt1 > 20]
+hist(bigger.wt1)
+```
+
+
+
+(b) Create a vector \texttt{wt0} with numerator as indicator of not having a dog and being measured, and with denominator as the estimated probability of not having a dog, given the adjustment set, times the estimated probability of being measured, given the observed past:
+
+$$
+wt0_i = \frac{\mathbb{I}(A_i=0,\Delta_i = 1)}{\hat{\mathbb{P}}(A=0|W_i)\times\hat{\mathbb{P}}(\Delta=1|A_i,W_i)}
+$$
+
+```{R s3q6b}
+wt0 <- as.numeric(MissData$A==0 & MissData$Delta==1)/(prob.0W*prob.1AW)
+summary(wt0)
+hist(wt0)
+big.wt0 <- wt0[wt0 > 10]
+hist(big.wt0)
+bigger.wt0 <- wt0[wt0 > 20]
+hist(bigger.wt0)
+```
+
+(c) Comment on the distribution of the weights.
+
+The weights for participants without and with a dog are highly skewed to the right, with the highest weight being 102.4 for the former and 180.7 for the latter. The vast majority of weights are relatively small, with >75% being less than 1.3, and only 22 and 23 (without and with a dog) being greater than ten (and only 6 and 9 being greater than twenty). The large sample weights may lead to poor finite sample performance.  
+
+\textbf{7. Evaluate the IPTW estimand by taking the difference of the empirical means of the weighted outcomes:}
+
+$$
+\hat{\Psi}_{IPTW}(\mathbb{P}_n) = \frac{1}{n} \sum_{i=1}^n\frac{\mathbb{I}(A_i=1, \Delta_i=1)}{\hat{\mathbb{P}}(A=1|W_i)\hat{\mathbb{P}}(\Delta=1|A_i,W_i)}Y_i - \frac{1}{n} \sum_{i=1}^n\frac{\mathbb{I}(A_i=0, \Delta_i=1)}{\hat{\mathbb{P}}(A=0|W_i)\hat{\mathbb{P}}(\Delta=1|A_i,W_i)}Y_i
+$$
+
+```{R s3q7}
+IPTW <- mean(wt1*MissData$Y) - mean(wt0*MissData$Y)
+IPTW
+iptw <- mean((wt1-wt0)*MissData$Y)
+iptw
+```
+
+The IPTW estimate of $\Psi(\mathbb{P}_0)$ is -24.5%, which can be interpreted as the estimated marginal differences in the mortality risk during 12 years, associated with having a dog and being measured, after controlling for the covariates.  
+
+\textbf{8. Arbitrarily truncate the weights at 10 and evaluate the IPTW estimand.}
+
+```{R s3q8}
+# I already found that there are 23 weights under the exposure, and 22 weights under no exposure, which are greater than ten.
+wt1.trunc <- wt1
+wt1.trunc[wt1.trunc > 10] <- 10
+wt0.trunc <- wt0
+wt0.trunc[wt0.trunc > 10] <- 10
+# evaluate the IPTW estimand with the truncated weights
+mean(wt1.trunc*ObsData$Y) - mean(wt0.trunc*ObsData$Y)
+```
+
+The IPTW estimate of $\Psi(\mathbb{P}_0)$ is now -31.8%. By bounding the predicted probabilities, our estimator of the propensity score $\mathbb{P}_0(A=1|W)$ is not consistent, and thus the IPTW will be biased.  
+
+\textbf{9. Implement the stabilized IPTW estimator (a.k.a. the modified Horvitz-Thompson estimator).}
+
+```{R s3q9}
+# Stabilized IPTW estimator - Modified Horvitz-Thompson estimator
+mean(wt1*MissData$Y)/mean(wt1) - mean(wt0*MissData$Y)/mean(wt0)
+# this is equivalent to
+sum(wt1*MissData$Y)/sum(wt1) - sum(wt0*MissData$Y)/sum(wt0)
+```
+
+The stabilized IPTW estimate of $\Psi(\mathbb{P}_0)$ is now -23.3%.
+
+\textbf{10. For comparison, also implement the unadjusted estimator.}
+
+$$
+\begin{aligned}
+\hat{\Psi}_{unadj}(\mathbb{P}_n) &= \hat{\mathbb{E}}(Y|A=1,\Delta=1)-\hat{\mathbb{E}}(Y|A=0,\Delta=1) \\
+&=\frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i=1,\Delta_i=1)}{\hat{\mathbb{P}}(A=1,\Delta=1)}Y_i - \frac{1}{n}\sum_{i=1}^n\frac{\mathbb{I}(A_i=0,\Delta_i=1)}{\hat{\mathbb{P}}(A=0,\Delta=1)}Y_i
+\end{aligned}
+$$
+
+```{R s3q10}
+ttx1 <- filter(MissData, A == 1)
+ttx0 <- filter(MissData, A == 0)
+unadj <- mean(ttx1$Y) - mean(ttx0$Y)
+unadj
+```
+
+The unadjusted estimator is -34.1%, which is considerably larger in magnitude than what was estimated with IPTW.  
+
+\textbf{11. \textit{Bonus:} Implement a simple substitution estimator (a.k.a. parametric G-computation) of $\Psi(\mathbb{P_0})$, where in the first step the following parametric regression is used to estimate $\mathbb{E}_0(Y|A, W1, W2, W3, W4)$ - \textit{among those who are measured:}}
+
+$$
+\mathbb{E}(Y|A, \Delta=1, W1,W2,W3,W4) = logit^{-1}[\beta_0 + \beta_1W1 + \beta_2W2 + \beta_3W3 + \beta_4W4 + \beta5A]
+$$
+
+\texttt{outcomereg <- glm(Y ~ A + W1 + W2 + W3 + W4, data=ObsData[ObsData\$Delta==1,], family="binomial")}
+
+```{R s3q11}
+# Estimate the conditional mean of Y given the treatment A and covariates W
+outcomereg <- glm(Y ~ A + W1 + W2 + W3 + W4, data=MissData[MissData$Delta==1,], family="binomial")
+outcomereg
+# Copy the original dataset O into two new dataframes txt and control
+txt <- control <- MissData
+# set A=1 in the txt dataframe and A=0 in control dataframe
+txt$A <- 1
+control$A <- 0
+# Predict the mean outcome for each individual in the sample under the treatment
+predictY.txt <- predict(outcomereg, newdata = txt, type='response')
+# Predict the mean outcome for each individual in the sample under the control
+predictY.control <- predict(outcomereg, newdata = control, type='response')
+# Observe results
+head(cbind(MissData, predictY.txt, predictY.control))
+tail(cbind(MissData, predictY.txt, predictY.control))
+# Take the mean of the predicted outcomes to average over the distribution of Ws
+mean(predictY.txt - predictY.control)
+```
+
+\textbf{12. Comment on the results.}
+
+The estimated difference in the mortality risk during 12 years, associated with having a dog, averaged with respect to the distribution of the covariates, is -28.7%. This is similar to, although slightly larger in magnitude, than the difference found using IPTW.  
+
+# 4 Improving IPTW
+
+```{r}
+# SECTION 4 of R Assign 3
+
+set.seed(1)
+
+# The true value of the conditional mean outcome E_0[Y|A,W]
+true.meanY.AW <- function(A,W){
+  1000 + plogis(W*A)
+}
+# The true value of propensity score Pr(A=1|W)
+true.prob.AW <- function(W){
+  0.2 + 0.6*W
+}
+
+# A function which returns a data frame with n i.i.d. observations from P_0
+gen.data <- function(n){
+  # note this is a shortcut way of coding that skips generating the Us
+  # first and then generating the endogenous variables deterministically
+	W <- rbinom(n, 1, 1/2)
+	A <- rbinom(n, 1, true.prob.AW(W=W))
+	Y <- 1000 + rbinom(n, 1, true.meanY.AW(A=A,W=W) - 1000)
+	return(data.frame(W=W,A=A,Y=Y))
+}
+
+# samples size
+n<- 1000
+# Number of Monte Carlo draws
+R <- 2000
+# Matrix of estimates from IPTW, modified Horvitz-Thompson, and my.est
+est <- matrix(NA,nrow=R,ncol=3)
+colnames(est) <- c('IPTW','Modifed HT','my.est')
+for(r in 1:R){
+	# Generate data with sample size
+	ObsData <- gen.data(n)
+	W <- ObsData$W
+	A <- ObsData$A
+	Y <- ObsData$Y
+	# True propensity score P_0(A=1|W)
+	pscore <- true.prob.AW(W=W)
+	# IPTW estimate
+	IPTW.est <- mean(A/pscore*Y)
+	# Modified Horvitz-Thompson estimate
+	HT.est <- mean(A/pscore*Y)/mean(A/pscore)
+	# You should replace the NA below with your own estimator
+	my.est <- mean(A/pscore*(Y-1000))+1000
+	# Put the estimates into the est matrix
+	est[r,] <- c(IPTW.est, HT.est, my.est)
+}
+
+# Calculate the true value of sum_w E[Y|A=1,W=w) P(W=w)
+truth <- .5*true.meanY.AW(A=1, W=0) + .5*true.meanY.AW(A=1,W=1)
+# note: we know P_0(W=1) = 0.5
+truth
+
+# Calculate the estimated bias, variance, and MSE
+est.bias <- colMeans(est) - truth
+est.var <- apply(est,2,var)
+est.mse <- est.bias^2 + est.var
+
+# The estimators have (estimated) bias:
+est.bias
+# The estimators have (estimated) variance:
+est.var
+# The estimators have (estimated) MSE:
+est.mse
+```
+
+
+\textbf{1. Run the code given in Rassign3\_modifiedIPTW.R and report how the standard IPTW and modified Horvitz-Thompson estimators perform in terms of bias, variance, and MSE over 2000 simulations each with sample size 1000.  Which estimator would you use in practice?}  
+
+```{R s4q1}
+# The estimators have (estimated) bias:
+est.bias
+# The estimators have (estimated) variance:
+est.var
+# The estimators have (estimated) MSE:
+est.mse
+```
+
+Clearly, the modofied HT estimator performs best with significantly smaller bias, variance, and MSE. It would make sense to use the Modified HT in this scenario even with the increased computational cost, since the performance is thousands of times better.  
+
+\textbf{2. Look at the IPTW column in the \texttt{est} matrix.  What do you notice about the IPTW estimates across these 2000 Monte Carlo draws?} \texttt{Hint:} Recall the values that $Y$ can take.
+
+```{R s4q2}
+head(est, n=10)
+est.tib <- as_tibble(est)
+summary(est.tib)
+hist(est.tib$IPTW)
+```
+
+What is especially noteworthy is that the IPTW estimates are dispersed widely from 863 to 1146, even though Y can only take values of 1,000 and 1,001. In other words, the values generally don't make sense, as they should be binary, and instead are distributed in gaussian fashion.  
+
+\textbf{3. What is the variance of a random variable $X$ with $\mathbb{P}(X=0)=1/2$ and $\mathbb{P}(X=1)=1/2$?}
+
+The variance of the binomial distribution is $var=Np(1-p)$ which in this case would be $0.25N$
+
+\textbf{4. What is the variance of a random variable $X2$ with $Pr(X2=0)=1/2$ and $Pr(X2=1000)=1/2$?}
+
+\texttt{Hint:} $X2 = 1000 \times X$
+
+As explained by Josh in the lab, when a random variable is multiplied by a constant, the variance $Var(c \cdot X) = c^2Var(X)$, which in this case would mean the variance becomes $250,000N$
+
+\textbf{5. How are the above two calculations relevant to improving the IPTW estimator in this problem? We currently have an estimator that is an empirical mean of variables like those in Question 4.  What transformations of the outcome $Y$ would make your estimator behave more like an empirical mean of variables like those in Question 3?}  
+
+My intuition is to simply subtract 1,000 from the outcome Y so that it is a simple binary variable (and then add it again to get the correct result).  
+
+\textbf{6. \textit{Graded leniently:} Write down an estimator $\hat{\Psi}_{my.est}$ which applies the ideas of the previous three questions into an estimator.  There's no need to give the best possible estimator, but you should give an estimator that outperforms the IPTW estimator by a significant margin (i.e., does as or almost as well as the modified Horvitz-Thompson estimator in terms of bias/variance/MSE).}
+
+Using my intuition from the question above I created the following estimator:  
+my.est <- mean(A/pscore*(Y-1000))+1000  
+This gives an estimator that outperforms the IPTW by a significant margin and does almost as well as the modified Horvitz-Thompson estimator in terms of bias/variance/MSE.  
+
+\textbf{7. \textit{Graded leniently:} Code your estimator and replace the NA on the line $\texttt{my.est = NA}$ with the estimator you defined in the previous question.  Report the bias/variance/MSE of your estimator over the 2000 Monte Carlo draws.}
+
+```{r}
+est.bias
+est.var
+est.mse
+```
+
+
+# Thank you!
