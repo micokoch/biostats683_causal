@@ -122,8 +122,17 @@ plata
 # gender, age, raceeth, usborn, usyears, educ, marital, pregnancy, household, income
 # Get rid of: usyears and pregnancy (too many missing)
 
-# New csv file with fewer (and fixed) covariates:
+
+####
+# Remove pregnant participants from our sample
+# Remove respondents who didn't know or refused to answer q on vigorous exercise
+slpexcov %>% count(pregnancy)
 slpexcov2 <- slpexcov %>% 
+  subset(pregnancy != 1 | is.na(pregnancy))
+summary(slpexcov2)
+
+# New csv file with fewer (and fixed) covariates:
+slpexcov2 %>% 
   dplyr::select(-usyears, -pregnancy)
 summary(slpexcov2)
 head(slpexcov2)
