@@ -132,7 +132,7 @@ slpexcov2 <- slpexcov %>%
 summary(slpexcov2)
 
 # New csv file with fewer (and fixed) covariates:
-slpexcov2 %>% 
+slpexcov2 <- slpexcov2 %>% 
   dplyr::select(-usyears, -pregnancy)
 summary(slpexcov2)
 head(slpexcov2)
