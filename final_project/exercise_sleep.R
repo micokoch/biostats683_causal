@@ -118,9 +118,9 @@ exer1517 <- exer1517 %>%
   mutate(lg2modexminwk = ifelse(modexminwk == 0, NA, log2(modexminwk)))
 hist(exer1517$lg2modexminwk) # Now we have a normally distributed set of values
 summary(exer1517)
-#Create new column of sum of moderate and vigorous exercise
+#Create new column of sum of moderate and vigorous exercise (multiply vigorous exercise times two)
 exer1517 <- exer1517 %>% 
-  mutate(exminwk = (vigexminwk + modexminwk))
+  mutate(exminwk = ((vigexminwk*2) + modexminwk))
 summary(exer1517)
 hist(exer1517$exminwk)
 # There are few extreme values, so I will log 2 transform them (excluding zero)
@@ -135,7 +135,7 @@ summary(exer1517)
 hist(exer1517$targetex, breaks = 2)
 # Create smaller dataframe with fewer columns
 smex <- exer1517 %>% 
-  dplyr::select(SEQN, targetex, exminwk, modexminwk, vigexminwk, lg2exminwk, lg2modexminwk, lg2vigexminwk)
+  dplyr::select(SEQN, targetex, exminwk, modexminwk, vigexminwk)
 summary(smex)
 
 ##### SLEEP
@@ -258,19 +258,19 @@ binslpex <- dplyr::select(slpex, SEQN, targetex, targetslp)
 summary(binslpex)
 
 ####### ANALYSIS
-library(gtsummary)
-library(pubh)
-library(MASS)
-library(epiR)
-tbl_summary(slpex)
-tbl_summary(binslpex, by = targetex)
-binslpex %>%
-  dplyr::select(targetex, targetslp) %>% 
-  cross_tbl(by = "targetex") %>%
-  theme_pubh(2)
-con1<-table(binslpex$targetex, binslpex$targetslp, dnn = c("Exercise", "Sleep"))
-con1
-mosaicplot(con1)
+# library(gtsummary)
+# library(pubh)
+# library(MASS)
+# library(epiR)
+# tbl_summary(slpex)
+# tbl_summary(binslpex, by = targetex)
+# binslpex %>%
+#   dplyr::select(targetex, targetslp) %>% 
+#   cross_tbl(by = "targetex") %>%
+#   theme_pubh(2)
+# con1<-table(binslpex$targetex, binslpex$targetslp, dnn = c("Exercise", "Sleep"))
+# con1
+# mosaicplot(con1)
 
 binslpex %>% 
   dplyr::select(-SEQN) %>% 
