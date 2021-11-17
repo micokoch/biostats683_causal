@@ -1,0 +1,155 @@
+---
+title: "R Assignment 4"
+author: "Your Name Here"
+date: "The Date"
+output: pdf_document
+---
+
+```{r echo=F}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+
+# 2 Import and explore the data set \texttt{RAssign4.SL.csv}.
+
+\textbf{1. Use the \texttt{read.csv} function to import the data set and assign it to data frame \texttt{ObsData}.}
+
+```{R s2q1}
+
+```
+
+\textbf{2. Use the \texttt{names}, \texttt{tail}, and \texttt{summary} functions to explore the data.}
+
+```{R s2q2}
+
+```
+
+\textbf{3. Use the \texttt{nrow} function to count the number of communities in the data set.  Assign this number as \texttt{n}.}
+
+```{R s2q3}
+
+```
+
+# 3 Code discrete Super Learner to select the estimater with the lowest cross-validated risk estimate.
+
+\textbf{1. Briefly discuss the motivation for using discrete Super Learner (a.k.a. the cross-validation selector).}
+
+```{R s3q2}
+
+```
+
+\textbf{2. Set the seed to 1, and then split the data into $V=20$ folds.}
+
+```{R s3q3}
+
+```
+
+\textbf{3. Create a matrix \texttt{Pred} with 5000 rows for the communities and 4 columns to hold the cross-validated predictions for each community according to each candidate algorithm.}
+
+```{R s3q4}
+
+```
+
+\textbf{4. Create an empty matrix \texttt{CV.risk} with 20 rows and 4 columns for each algorithm, evaluated at each fold.}
+
+```{R s4q5}
+
+```
+
+\textbf{5. Use a \texttt{for} loop to fit each estimator on the training set (19/20 of the data); predict the expected MUAC for communities in the validation set (1/20 of the data), and evaluate the cross-validated risk.}
+
+(a) \textbf{Since each fold needs to serve as the training set, have the \texttt{for} loop run from \texttt{V} is 1 to 20.}
+
+(b) \textbf{Create the validation set as a data frame \texttt{valid}, consisting of observations with \texttt{Fold} equal to \texttt{V}.}
+
+(c) \textbf{Create the training set as a data frame \texttt{train}, consisting of observations with \texttt{Fold} not equal to \texttt{V}.}
+
+(d) \textbf{Use \texttt{glm} to fit each algorithm on the training set.  Be sure to specify \texttt{data=train}.}
+
+(e) \textbf{For each algorithm, predict the average MUAC for each community in the validation set at the appropriate row in the matrix \texttt{Pred}. Be sure to specify the \texttt{type='response'} and \texttt{newdata=valid}.}
+
+(f) \textbf{Save the cross-validated predictions for each community in the validation set at the appropriate row in the matrix \texttt{Pred}.}
+
+(g) \textbf{Estimate the cross-validated risk for each algorithm with the L2 loss function.} Take the average of the squared differences between the observed outcomes $Y$ in the validation set and the predicted outcomes. \textbf{Assign the cross-validated risks as a row in the matrix \texttt{CV.risk}.}
+
+```{R s3q6}
+
+```
+
+\textbf{6. Select the algorithm with the lowest average cross-validated risk across the folds.} Hint: use the \texttt{colMeans} function.
+
+```{R s3q7}
+
+```
+
+\textbf{7. Fit the chosen algorithm on all the data.}
+
+```{R s3q8}
+
+```
+
+\textbf{8. How can we come up with an even better prediction function than the one selected?}
+
+# 4  Bonus: Completely Optional - Coding the weights
+
+1.  Write your own \texttt{R} code to estimate the optimal convex combination of weights using the L2 loss function. (In other words, do not use the \texttt{SuperLearner} package.)
+
+2.  Apply your weights to generate the ensemble-based predictions.
+
+# 5 Use the \texttt{SuperLearner} package to build the best combination of algorithms.
+
+\textbf{1. Load the Super Learner package with the \texttt{library} function and set the seed to \texttt{252}.}
+
+```{R s5q1}
+
+```
+
+\textbf{2.  Use the \texttt{source} function to load script file \texttt{RAssign4.Wrappers.R}, which includes the wrapper functions for the $a$ $priori$-specified parametric regressions.}
+
+```{R s5q2}
+
+```
+
+\textbf{3. Specify the algorithms to be included in Super Learner's library.} 
+
+```{R s5q3}
+
+```
+
+\textbf{\textit{Bonus:} Very briefly describe the algorithms corresponding to \texttt{SL.ridge, SL.rpart} and \texttt{SL.earth}}
+
+\textbf{4.  Create data frame \texttt{X} with the predictor variables.} 
+
+```{R s5q4}
+
+```
+
+\textbf{5. Run the \texttt{SuperLearner} function.  Be sure to specify the outcome \texttt{Y}, the predictors \texttt{X} and the library \texttt{SL.library}.  Also include \texttt{cvControl=list(V=20)} in order to get 20-fold cross-validation.}
+
+```{R s5q5}
+
+```
+
+\textbf{6.  Explain the output to relevant policy makers and stake-holders.  What do the columns \texttt{Risk} and \texttt{Coef} mean?  Are the cross-validated risks from \texttt{SuperLearner} close to those obtained by your code?}
+
+\textbf{7. Briefly explain why we don't (or shouldn't) use Machine Learning-based predictions of $\mathbb{E}_0(Y|A,W)$ in a simple substitution estimator or Machine Learning-based predictions of $\mathbb{P}_0(A|W)$ in inverse probability weighting?}
+
+# 6 Implement \texttt{CV.SuperLearner}
+
+\textbf{1. Explain why we need \texttt{CV.SuperLearner}.}
+
+
+\textbf{2. Run \texttt{CV.SuperLearner}.} Again be sure to specify the outcome \texttt{Y}, the predictors \texttt{X}, and library \texttt{SL.library}.  Specify the cross-validation scheme by including \texttt{cvControl=list(V=5)} and \texttt{innerCvControl=list(list(V=20))}. 
+
+```{R s6q2}
+
+```
+
+\textbf{3. Explore the output. Only include the output from the $summary$ function in your writeup, but $comment$ on the other output.}
+
+```{R s6q3}
+
+```
+
+
