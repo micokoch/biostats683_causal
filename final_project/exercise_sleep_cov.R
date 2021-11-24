@@ -146,8 +146,8 @@ binslpex2 %>%
   summarise(n = n())
 
 #####
-
-## Should add BMI, smoking status, alcohol consumption, depression.
-## Consider running multiple imputation for income (722 NAs)
+## Take out income
+## Filter out females
+## Should add BMI, smoking status, alcohol consumption, depression, snoring/apnea
 ## Once covariates are complete, replace simple imputations for exposure with IPTW
 ## Use NHANES weights for data
