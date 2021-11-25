@@ -1,0 +1,263 @@
+---
+title: "R Assignment 4"
+author: "Alvaro J. Castro Rivadeneira"
+date: "November 23, 2021"
+output: pdf_document
+---
+
+```{r echo=F}
+library(knitr)
+library(tidyverse)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+
+# 2 Import and explore the data set \texttt{RAssign4.SL.csv}.
+
+\textbf{1. Use the \texttt{read.csv} function to import the data set and assign it to data frame \texttt{ObsData}.}
+
+```{R s2q1}
+ObsData <- read.csv("RAssign4.sl.csv")
+```
+
+\textbf{2. Use the \texttt{names}, \texttt{tail}, and \texttt{summary} functions to explore the data.}
+
+```{R s2q2}
+names(ObsData)
+tail(ObsData)
+summary(ObsData)
+```
+
+\textbf{3. Use the \texttt{nrow} function to count the number of communities in the data set.  Assign this number as \texttt{n}.}
+
+```{R s2q3}
+n <- nrow(ObsData)
+n
+```
+
+# 3 Code discrete Super Learner to select the estimater with the lowest cross-validated risk estimate.
+
+\textbf{1. Briefly discuss the motivation for using discrete Super Learner (a.k.a. the cross-validation selector).}  
+
+We want to use discrete Super Learner because after talking to experts we have a limited set of estimators for our target parameter and believe that the best one is found in that group. Additionally, we believe they are all similar parametric regressions, with differences based mainly on whether they have covariates and interactions added. Thus, we intend to select the best among these few models. We use cross-validation so we can test on independent data from the same distribution, but do this multiple times so we test on all the data in different folds.  
+
+```{R s3q2}
+library("SuperLearner")
+# specify the library
+SL.library<- c("SL.mean", "SL.glm")
+```
+
+\textbf{2. Set the seed to 1, and then split the data into $V=20$ folds.}
+
+```{R s3q3}
+set.seed(1)
+Fold <- c()
+for (i in 1:20){
+  j <- rep(i, 25)
+  Fold <- append(Fold, j)
+}
+```
+
+\textbf{3. Create a matrix \texttt{Pred} with 500 rows for the communities and 4 columns to hold the cross-validated predictions for each community according to each candidate algorithm.}
+
+```{R s3q4}
+Pred <- matrix(NA, nrow=500, ncol=4)
+```
+
+\textbf{4. Create an empty matrix \texttt{CV.risk} with 20 rows and 4 columns for each algorithm, evaluated at each fold.}
+
+```{R s4q5}
+CV.risk <- data.frame(matrix(NA, nrow=20, ncol=4))
+# label the columns for the candidate estimators
+colnames(CV.risk) <- c('EstA', 'EstB', 'EstC', 'EstD')
+```
+
+\textbf{5. Use a \texttt{for} loop to fit each estimator on the training set (19/20 of the data); predict the expected MUAC for communities in the validation set (1/20 of the data), and evaluate the cross-validated risk.}
+
+(a) \textbf{Since each fold needs to serve as the training set, have the \texttt{for} loop run from \texttt{V} is 1 to 20.}
+
+(b) \textbf{Create the validation set as a data frame \texttt{valid}, consisting of observations with \texttt{Fold} equal to \texttt{V}.}
+
+(c) \textbf{Create the training set as a data frame \texttt{train}, consisting of observations with \texttt{Fold} not equal to \texttt{V}.}
+
+(d) \textbf{Use \texttt{glm} to fit each algorithm on the training set.  Be sure to specify \texttt{data=train}.}
+
+(e) \textbf{For each algorithm, predict the average MUAC for each community in the validation set at the appropriate row in the matrix \texttt{Pred}. Be sure to specify the \texttt{type='response'} and \texttt{newdata=valid}.}
+
+(f) \textbf{Save the cross-validated predictions for each community in the validation set at the appropriate row in the matrix \texttt{Pred}.}
+
+(g) \textbf{Estimate the cross-validated risk for each algorithm with the L2 loss function.} Take the average of the squared differences between the observed outcomes $Y$ in the validation set and the predicted outcomes. \textbf{Assign the cross-validated risks as a row in the matrix \texttt{CV.risk}.}
+
+```{R s3q6}
+# the for loop runs from V=1 to V=20
+for(V in 1:20){ # (a)
+  valid <- ObsData[Fold == V, ] # (b)
+  train <- ObsData[Fold !=V, ] # (c)
+  # (d)
+  EstA <- glm(Y ~ 1, family='gaussian', data=train)
+  EstB <- glm(Y ~ factor(W1) + factor(W2) + W3 + W4 + W5, family='gaussian', data=train)
+  EstC <- glm(Y ~ factor(W1) + factor(W2) * W5 + W3 + W4, family='gaussian', data=train)
+  EstD <- glm(Y ~ factor(W1) * W3 + factor(W2) * W5 + W4, family='gaussian', data=train)
+  # (e)
+  PredA <- predict(EstA, newdata=valid, type='response')
+  PredB <- predict(EstB, newdata=valid, type='response')
+  PredC <- predict(EstC, newdata=valid, type='response')
+  PredD <- predict(EstD, newdata=valid, type='response')
+  # (f)
+  Pred[Fold==V, ] <- cbind(PredA, PredB, PredC, PredD)
+  # (g)
+  CV.risk[V,]<- c(mean((valid$Y - PredA)^2), mean((valid$Y - PredB)^2),
+                  mean((valid$Y - PredC)^2), mean((valid$Y - PredD)^2))
+  }
+```
+
+\textbf{6. Select the algorithm with the lowest average cross-validated risk across the folds.} Hint: use the \texttt{colMeans} function.  
+
+```{R s3q7}
+risk1 <- colMeans(CV.risk)
+risk1
+```
+
+EstD is the algorithm with the lowest average cross-validated risk across the folds.  
+
+\textbf{7. Fit the chosen algorithm on all the data.}
+
+```{R s3q8}
+EstD.all <- glm(Y ~ factor(W1) * W3 + factor(W2) * W5 + W4, family='gaussian', data=ObsData)
+EstD.all
+```
+
+\textbf{8. How can we come up with an even better prediction function than the one selected?}  
+
+We can use more algorithms and candidate estimators, including nonparametric ones, as well as use the `SuperLearner` package to include convex combinations of algorithms.  
+
+# 4  Bonus: Completely Optional - Coding the weights
+
+1.  Write your own \texttt{R} code to estimate the optimal convex combination of weights using the L2 loss function. (In other words, do not use the \texttt{SuperLearner} package.)
+
+```{r s3bonus}
+# Using the example in the Naimi and Balzer (2018) SuperLearner Intro article as a guide, plus my intuition
+allobs <- ObsData
+head(CV.risk)
+bonus <- c()
+for(V in 1:20){
+  bn <- which.min(CV.risk[V,])
+  bonus <- append(bonus, bn)
+}
+as.data.frame(table(bonus))
+# This means that for EstC should have a weight of 0.2, and EstD should have a weight of 0.8
+alpha<-as.matrix(c(0.2, 0.8))
+```
+
+
+2.  Apply your weights to generate the ensemble-based predictions.
+
+```{r}
+## fit algorithms to original data and generate predictions
+EstC.all <- glm(Y ~ factor(W1) + factor(W2) * W5 + W3 + W4, family='gaussian', data=ObsData)
+EstD.all <- glm(Y ~ factor(W1) * W3 + factor(W2) * W5 + W4, family='gaussian', data=ObsData)
+
+## predict from each fit using all data
+PredC.all <- predict(EstC.all, newdata=allobs, type='response')
+PredD.all <- predict(EstD.all, newdata=allobs, type='response')
+
+predictions<-cbind(PredC.all, PredD.all)
+
+## for the observed data take a weighted combination of predictions using coeficients as weights
+y_pred <- predictions%*%alpha
+bonus.risk <- (ObsData$Y - y_pred)^2
+risk2 <- mean(bonus.risk)
+names(risk2) <- ('EstComb')
+# My weighted ensemble yields better predictions than all individual models (including the best one).
+risk.comb <- append(risk1, risk2)
+risk.comb
+```
+
+
+# 5 Use the \texttt{SuperLearner} package to build the best combination of algorithms.
+
+\textbf{1. Load the Super Learner package with the \texttt{library} function and set the seed to \texttt{252}.}
+
+```{R s5q1}
+library("SuperLearner")
+set.seed(252)
+```
+
+\textbf{2.  Use the \texttt{source} function to load script file \texttt{RAssign4.Wrappers.R}, which includes the wrapper functions for the $a$ $priori$-specified parametric regressions.}
+
+```{R s5q2}
+source('RAssign4.Wrappers.R')
+```
+
+\textbf{3. Specify the algorithms to be included in Super Learner's library.} 
+
+```{R s5q3}
+SL.library<- c('SL.glm.EstA', 'SL.glm.EstB', 'SL.glm.EstC', 'SL.glm.EstD', 'SL.ridge','SL.rpart', 'SL.earth')
+```
+
+\textbf{\textit{Bonus:} Very briefly describe the algorithms corresponding to \texttt{SL.ridge, SL.rpart} and \texttt{SL.earth}}  
+
+**SL.ridge** is a ridge regression, or penalized least squares, which is very similar to a linear regression except it includes a zero-mean prior to encourage weights of parameters to be small and thus reduce overfitting.  
+
+**SL.rpart** is a regression tree (decision tree), which recursively partitions data into smaller groups and then fits a simple model for each subgroup.
+
+**SL.earth** is a multivariate adaptive regression spline, which is a flexible non-parametric regression functioning as an extension of a generalized additive model that allows for interaction effects. In fact, it searches for interactions and non-linear relationships.  
+
+\textbf{4.  Create data frame \texttt{X} with the predictor variables.} 
+
+```{R s5q4}
+X <- subset(ObsData, select = -Y)
+tail(X)
+```
+
+\textbf{5. Run the \texttt{SuperLearner} function.  Be sure to specify the outcome \texttt{Y}, the predictors \texttt{X} and the library \texttt{SL.library}.  Also include \texttt{cvControl=list(V=20)} in order to get 20-fold cross-validation.}
+
+```{R s5q5}
+SL.out<- SuperLearner(Y=ObsData$Y, X=X, SL.library=SL.library, family='gaussian', cvControl=list(V=20))
+SL.out
+```
+
+\textbf{6.  Explain the output to relevant policy makers and stake-holders.  What do the columns \texttt{Risk} and \texttt{Coef} mean?  Are the cross-validated risks from \texttt{SuperLearner} close to those obtained by your code?}  
+
+The first item to explain to policy makers and stake-holders is that most candidate estimators given by subject matter experts are not very good at predicting malnutrition at the community level. In terms of the first set of four parametric regressions, only the largest model with the most interactions was able to predict reasonable results with cross-validation. Moreover, when more sophisticated machine learning models were added (ridge, rpart, earth), the importance of this last model decreased, and others were better at predicting malnutrition. Thus, it would be advisable to use a non-parametric ensemble of models (Super Learner!) to most accurately predict malnutrition at the community level. In other words, don't rely on a simple model to predict malnutrition, but use an ensemble of parametric and nonparametric models to get the best results.  
+
+The `Risk` column gives the cross-validated empirical risk estimate for each algorithm across the 20 folds. It is basically the mean-squared error (MSE) of our model across the validation sets, and thus a measure of model accuracy and performance. Like the MSE, we want it to be small. The `Coef` column gives the weight or importance of each individual learner in the convex combination, so that they all are nonzero and add to one. The greater the coefficient, the more important it is for prediction.  
+
+```{r s5q6}
+SL.out
+risk.comb
+```
+
+Finally, as can be seen above, the cross-validated risks from `SuperLearner` are very close to those obtained by my code in the first part, which is as we hoped and expected, with the differences possibly due to the slightly different seeds that were used, and because folds are assigned randomly.  
+
+\textbf{7. Briefly explain why we don't (or shouldn't) use Machine Learning-based predictions of $\mathbb{E}_0(Y|A,W)$ in a simple substitution estimator or Machine Learning-based predictions of $\mathbb{P}_0(A|W)$ in inverse probability weighting?}  
+
+Firstly, because there may be an incorrect bias-variance trade-off, where a ML model may exclude an exposure or covariate to reduce variance, but increasing bias. By not incorporating our knowledge of the structural causal model, it may build associations that although they are good predictors, may not reflect reality. A similar situation occurs with IPW, where the inclusion or exclusion of covariates in order to accurately predict the exposure may result in an inadequate bias-variance trade-off that increases the variability of the weights and the bias, due to practical positivity violations.  
+
+# 6 Implement \texttt{CV.SuperLearner}
+
+\textbf{1. Explain why we need \texttt{CV.SuperLearner}.}  
+
+`CV.SuperLearner` is a way to evaluate `SuperLearner` by adding an extra layer of cross-validation, that allows us to avoid over-fitting, and allows us to compare it to other algorithms.  
+
+\textbf{2. Run \texttt{CV.SuperLearner}.} Again be sure to specify the outcome \texttt{Y}, the predictors \texttt{X}, and library \texttt{SL.library}.  Specify the cross-validation scheme by including \texttt{cvControl=list(V=5)} and \texttt{innerCvControl=list(list(V=20))}. 
+
+```{R s6q2}
+CV.SL.out<- CV.SuperLearner(Y=ObsData$Y, X=X, SL.library=SL.library, family='gaussian', 
+                            cvControl=list(V=5), innerCvControl=list(list(V=20)))
+```
+
+\textbf{3. Explore the output. Only include the output from the $summary$ function in your writeup, but $comment$ on the other output.}
+
+```{R s6q3}
+summary(CV.SL.out)
+# # returns the output for each call to Super Learner
+# CV.SL.out$AllSL
+# # condensed version of the output from CV.SL.out$AllSL with only the coefficients
+# # for each Super Learner run
+# CV.SL.out$coef
+# # returns the algorithm with lowest CV risk (discrete Super Learner) at each step.
+# CV.SL.out$whichDiscrete
+```
+
+Briefly, we can see that earth, the multivariate adaptive regression spline produced the best results as an individual model, but it did benefit from the contributions of the other models, so that the risk decreased (although slightly) in the SuperLearner. We can see the importance of cross-validating Super Learner, since there was fluctuation in the results and performance across each run - emphasizing the need and importance of having many folds for the cross-validation. Overall, earth largely outperformed all other algorithms significantly, but it was interesting to see that our simple weighted regression produced initially had the second best result.  
