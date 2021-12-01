@@ -184,7 +184,7 @@ hist(demogconf1517$household, breaks = 0:6) # HH size: 444-1, 962-2, 789-3, 764-
 demogconf1517 %>% count(INDHHIN2)
 # There are 201 NA, 81 don't know (99) and 79 refused (77) -> set all to NA
 demogconf1517 <- demogconf1517 %>% 
-  mutate(income = ifelse(INDHHIN2 == 77, NA, ifelse(INDHHIN2 == 99, NA, INDHHIN2)))
+  mutate(income = ifelse(INDHHIN2 == 77, NA, ifelse(INDHHIN2 == 99, NA, factor(INDHHIN2))))
 # Check that after factoring, codes are the same
 demogconf1517 %>% count(income)
 hist(demogconf1517$income, breaks = 0:15)
@@ -195,22 +195,258 @@ demogconf1517 <- demogconf1517 %>%
 # Check numbers
 demogconf1517 %>% count(income) # 592 under $20k (1), 1,874 are $20-74.9k (2), 1,182 over $75k (3), 361 NA
 hist(demogconf1517$income, breaks = 0:3)
+# Now demogconf1517 has 4,009 obs of 20 variables
 
-### BMI confounders
+## Create table with demographic covariates
+demogcov1517 <- dplyr::select(demogconf1517, SEQN, gender, males, age, raceeth, usborn, usyears, educ,
+                         marital, household, income)
+summary(demogcov1517) # 4,009 obs of 11 variables
+# NAs: 2,690 in usyears, 2 in educ, 2 in marital, 361 in income
 
-## Should add BMI, smoking status, alcohol consumption, depression, snoring/apnea
+# Merge with slpex and demographic confounders
+slpexdem <- merge(slpex, demogcov1517, by = 'SEQN') # 3,981 obs of 17 variables
+summary(slpexdem)
+head(slpexdem)
+tail(slpexdem)
+
+### Sleep confounders
+# 2015
+sleepcov2015 <- nhanes('SLQ_I') %>% 
+  dplyr::select(c('SEQN', 'SLQ030', 'SLQ040'))
+# 2017
+sleepcov2017 <- nhanes('SLQ_J') %>% 
+  dplyr::select(c('SEQN', 'SLQ030', 'SLQ040'))
+
+# Combine years
+sleepcov1517 <- bind_rows(sleepcov2015, sleepcov2017) # 12,488 obs of 3 variables
+# Merge with slpex
+slpexcov <- merge(slpexdem, sleepcov1517, by = 'SEQN') # 3,981 obs of 19 variables
+summary(slpexcov)
+
+# SLQ030 - Snoring
+slpexcov %>% count(SLQ030)
+hist(slpexcov$SLQ030, breaks = 0:9)
+# There are 214 don't know (9) and 3 refused (7) -> set all to NA
+slpexcov <- slpexcov %>% 
+  mutate(snoring = ifelse(SLQ030 == 7, NA, ifelse(SLQ030 == 9, NA, factor(SLQ030))))
+# Check numbers after factoring
+slpexcov %>% count(snoring)
+# 809 - no snoring, 942 - 1-2 times/wk, 736 - 3-4 times/wk, 1,277 - 5-7 times/wk, 217 NA
+hist(slpexcov$snoring, breaks = 0:4)
+# Remove SLQ030
+slpexcov <- slpexcov %>% select(-SLQ030)
+# Now slpexcov has 3,981 obs of 19 variables
+
+# SLQ040 - Apnea
+slpexcov %>% count(SLQ040)
+hist(slpexcov$SLQ040, breaks = 0:9)
+# There are 195 don't know (9) and 4 refused (7) -> set all to NA
+slpexcov <- slpexcov %>% 
+  mutate(apnea = ifelse(SLQ040 == 7, NA, ifelse(SLQ040 == 9, NA, factor(SLQ040))))
+# Check numbers after factoring
+slpexcov %>% count(apnea)
+# 2,641 - no apnea, 589 - 1-2 times/wk, 304 - 3-4 times/wk, 248 - 5-7 times/wk, 199 NA
+hist(slpexcov$apnea, breaks = 0:4)
+# Not very well distributed - combine all "yes" answers
+slpexcov <- slpexcov %>% mutate(apnea = ifelse(apnea == 1, 0, 1))
+# Check numbers after factoring
+slpexcov %>% count(apnea)
+# 2,641 - no apnea, 1,141 - apnea, 199 NA
+hist(slpexcov$apnea, breaks = -1:1)
+# Remove SLQ040
+slpexcov <- slpexcov %>% select(-SLQ040)
+# Now slpexcov has 3,981 obs of 19 variables
+
+### Weight confounders
+# Using BMI and waist circumference (WC)
+# Didn't use sagittal abdominal diameter because more missing values than WC
+# 2015
+bmicov2015 <- nhanes('BMX_I') %>%
+  dplyr::select(c('SEQN', 'BMXBMI', 'BMXWAIST'))
+# 2017
+bmicov2017 <- nhanes('BMX_J') %>%
+  dplyr::select(c('SEQN', 'BMXBMI', 'BMXWAIST'))
+
+# Combine years
+wtcov1517 <- bind_rows(bmicov2015, bmicov2017) # 18,248 obs of 3 variables
+# Merge with slpex
+slpexcov <- merge(slpexcov, wtcov1517, by = 'SEQN') # 3,792 obs of 21 variables
+summary(slpexcov)
+
+# BMXBMI - BMI
+summary(slpexcov$BMXBMI)
+hist(slpexcov$BMXBMI)
+# Range: 15.10 - 86.20, median: 28.30, NA: 50
+slpexcov <- slpexcov %>% mutate(bmi = BMXBMI) %>% select(-BMXBMI)
+summary(slpexcov)
+# Now slpexcov has 3,792 obs of 21 variables
+
+# BMXWAIST - Waist Cirucmference
+summary(slpexcov$BMXWAIST)
+hist(slpexcov$BMXWAIST)
+# Range: 62.3 - 169.6, median: 99.2, NA: 159
+slpexcov <- slpexcov %>% mutate(waist = BMXWAIST) %>% select(-BMXWAIST)
+summary(slpexcov)
+# Now slpexcov has 3,792 obs of 21 variables
+
+### Smoking confounders
+# Decided to use SMQ020 - Smoked at least 100 cigarettes in life
+# It was the question with the smallest number of missing values (in others >50%)
+# 2015
+smoke2015 <- nhanes('SMQ_I') %>%
+  dplyr::select(c('SEQN', 'SMQ020'))
+# 2017
+smoke2017 <- nhanes('SMQ_J') %>%
+  dplyr::select(c('SEQN', 'SMQ020'))
+
+# Combine years
+smoke1517 <- bind_rows(smoke2015, smoke2017) # 13,725 obs of 2 variables
+# Merge with slpex
+slpexcov <- merge(slpexcov, smoke1517, by = 'SEQN') # 3,792 obs of 22 variables
+summary(slpexcov)
+
+# SMQ020 - Smoked at least 100 cigarettes in life
+summary(slpexcov$SMQ020)
+table(slpexcov$SMQ020) # 1,848 yes (1), 1,942 no (2), 2 refused (7)
+# Set don't know (9) and refused (7) to NA
+slpexcov <- slpexcov %>% 
+  mutate(smoke = ifelse(SMQ020 == 7, NA, ifelse(SMQ020 == 9, NA, factor(SMQ020)))) %>% 
+  mutate(smoke = ifelse(smoke == 2, smoke - 2, smoke)) %>% 
+  select(-SMQ020)
+# Check that after factoring, codes are the same
+slpexcov %>% count(smoke) # 1,942 no (0), 1,848 yes (1), 2 refused (NA)
+hist(slpexcov$smoke, breaks = -1:1)
+summary(slpexcov)
+# Now slpexcov has 3,792 obs of 22 variables
+
+### Alcohol confounders
+# Decided to use ALQ130 - Avg # alcoholic drinks/day - past 12 mos
+# Questions phrased differently in 2015 and 2017
+# 2015
+alcohol2015 <- nhanes('ALQ_I') %>%
+  dplyr::select(c('SEQN', 'ALQ101', 'ALQ110', 'ALQ130'))
+summary(alcohol2015)
+table(alcohol2015$ALQ130, useNA = "always") # 2,356 in NA, 4 in 999, 1,164 in 1, range 1:15
+# Large numbers of NAs in ALQ130 - try to fix
+alcohol2015 <- alcohol2015 %>% 
+  mutate(alcohol = 
+           case_when(
+             ALQ101 == 2 ~ as.integer(0), # If didn't have at least 12 alcohol drinks/1 yr - set to zero
+             ALQ110 == 2 ~ as.integer(0), # If didn't have at least 12 alcohol drinks/lifetime? - set to zero
+             TRUE ~ as.integer(ALQ130) # For rest keep ALQ130
+           )) %>% 
+  mutate(alcohol = ifelse(alcohol == 777, NA, ifelse(alcohol == 999, NA, alcohol))) # Set refused & don't know to NA
+table(alcohol2015$alcohol, useNA = "always") # 1,025 in NA, 1,728 in 0, range 1:15
+hist(alcohol2015$alcohol, breaks = -1:15)
+# Very skewed values with most in zero -> reduce categories to 0-4+
+alcohol2015 <- alcohol2015 %>% 
+  mutate(alcohol = ifelse(alcohol > 4, 4, alcohol))
+table(alcohol2015$alcohol, useNA = "always") # 1,025 in NA, 1,728 in 0, 883 in 1, 895 in 2, 459 in 3, 745 in 4+
+hist(alcohol2015$alcohol, breaks = -1:4)
+# Now remove unnecessary variables from alcohol
+alcohol2015 <- alcohol2015 %>% select(-ALQ101, -ALQ110, -ALQ130)
+summary(alcohol2015) # 5,735 obs of 2 variables
+# 2017
+alcohol2017 <- nhanes('ALQ_J') %>%
+  dplyr::select(c('SEQN', 'ALQ111', 'ALQ121', 'ALQ130'))
+summary(alcohol2017)
+table(alcohol2017$ALQ130, useNA = "always") # 2,038 in NA, 5 in 999, 1 in 777, 1,317 in 1, range 1:15
+# Large numbers of NAs in ALQ130 - try to fix
+alcohol2017 <- alcohol2017 %>% 
+  mutate(alcohol = 
+           case_when(
+             ALQ111 == 2 ~ as.integer(0), # If never had a drink of any kind of alcohol - set to zero
+             ALQ121 == 0 ~ as.integer(0), # If never had a drink in last year - set to zero
+             TRUE ~ as.integer(ALQ130) # For rest keep ALQ130
+           )) %>% 
+  mutate(alcohol = ifelse(alcohol == 777, NA, ifelse(alcohol == 999, NA, alcohol))) # Set refused & don't know to NA
+table(alcohol2017$alcohol, useNA = "always") # 410 in NA, 1,634 in 0, 1,317 in 1, range 1:15
+hist(alcohol2017$alcohol, breaks = -1:15)
+
+# Very skewed values with most in zero -> reduce categories to 0-4+
+alcohol2017 <- alcohol2017 %>% 
+  mutate(alcohol = ifelse(alcohol > 4, 4, alcohol))
+table(alcohol2017$alcohol, useNA = "always") # 410 in NA, 1,634 in 0, 1,317 in 1, 1,040 in 2, 479 in 3, 653 in 4+
+hist(alcohol2017$alcohol, breaks = -1:4)
+# Now remove unnecessary variables from alcohol
+alcohol2017 <- alcohol2017 %>% select(-ALQ111, -ALQ121, -ALQ130)
+summary(alcohol2017) # 5,533 obs of 2 variables
+# Combine years
+alcohol1517 <- bind_rows(alcohol2015, alcohol2017) # 11,268 obs of 2 variables
+# Merge with slpex
+slpexcov <- merge(slpexcov, alcohol1517, by = 'SEQN') # 3,792 obs of 23 variables
+summary(slpexcov)
+# Now slpexcov has 3,792 obs of 23 variables
+
+### Depression confounders
+# Use PHQ-9 (sum first 9 questions) and dicotimize with 10 or more being depression
+# 2015
+depress2015 <- nhanes('DPQ_I')
+# 2017
+depress2017 <- nhanes('DPQ_J')
+
+# Combine years
+depress1517 <- bind_rows(depress2015, depress2017) # 11,268 obs of 11 variables
+# Merge with slpex
+slpexcov <- merge(slpexcov, depress1517, by = 'SEQN') # 3,792 obs of 33 variables
+summary(slpexcov)
+# Remove DPQ100, since we won't use it for PHQ-9
+slpexcov <- select(slpexcov, -DPQ100)  # 3,792 obs of 32 variables
+summary(slpexcov)
+
+# PHQ-9 - Patient Health Questionnaire
+# Subset dataframe to PHQ questions for ease of use
+phq <- select(slpexcov, SEQN, DPQ010:DPQ090)
+summary(phq)
+# Check distribution of unique values
+phq %>% 
+  select(-SEQN) %>% 
+  sapply(table) # 1-5 people refused (7) or didn't know (9) in each question
+#Count unique responses of 7 or 9
+phq %>% filter(DPQ010 == 7 | DPQ010 == 9)
+# Set refused (7) and don't know (9) to NA
+phq %>% 
+  for(j in 1:nrow(phq)){
+    if(j == 7) {print("hi")}
+  }
+
+for(j in 1:nrow(phq))
+{
+  for(k in 1:ncol(age_wealth_total))
+  {
+    age_wealth_total[j,k] <- mean(c(age_wealth1[j,k], age_wealth5[j,k]))
+  }
+}
+
+
+
+# # BMXBMI - BMI
+# summary(slpexcov$BMXBMI)
+# hist(slpexcov$BMXBMI)
+# # Range: 15.10 - 86.20, median: 28.30, NA: 50
+# slpexcov <- slpexcov %>% mutate(bmi = BMXBMI) %>% select(-BMXBMI)
+# summary(slpexcov)
+# # Now slpexcov has 3,792 obs of 21 variables
+
+## Should add depression
+
+
+### Review how many variables I actually imputed
+slpexcov %>% filter(SEQN %in% imputed)
+# Currently there are only 10 imputed values
+
 #####
 ## Create table with covariates
-cov1517 <- dplyr::select(demogconf1517, SEQN, gender, age, raceeth, usborn, usyears, educ, marital, 
-                         household, income)
-summary(cov1517)
-write_csv(slpex, "cov1517.csv")
-
-# Merge slpex and confounders
-slpexconf <- merge(slpex, cov1517, by = 'SEQN')
-summary(slpexconf)
-head(slpexconf)
-tail(slpexconf)
-write_csv(slpexconf, "slpexconf.csv")
+# cov1517 <- dplyr::select(demogconf1517, SEQN, gender, age, raceeth, usborn, usyears, educ, marital, 
+#                          household, income)
+# summary(cov1517)
+# write_csv(slpex, "cov1517.csv")
+# 
+# # Merge slpex and confounders
+# slpexconf <- merge(slpex, cov1517, by = 'SEQN')
+# summary(slpexconf)
+# head(slpexconf)
+# tail(slpexconf)
+# write_csv(slpexconf, "slpexconf.csv")
 
 #####

@@ -62,18 +62,35 @@ table(exer1517$PAQ650, useNA = "always") # 3,627 are 1, 9,190 are 2
 table(exer1517$PAQ655, useNA = "always") # Only 1 is 99 (1 imputation), 9,190 are 0, 915 are 3 (2nd biggest cat)
 table(exer1517$PAD660, useNA = "always") # 4 are 9999, 7 NAs (11 imputations), 9,190 are 0, 1,122 are 60 (2nd biggest)
 # Days vigorous exercise simple imputation with mean - one imputation
+# Change missing values to NA
 exer1517 <- exer1517 %>% 
   mutate(PAQ655 = ifelse(PAQ655 > 10, NA, PAQ655))
 summary(exer1517) # Now 1 NA, mean = 0.9856
+# Keep track of imputations (to compare how many actually imputed after adding covariates)
+imputed <- c()
+imp <- exer1517 %>% filter(is.na(PAQ655)) %>% select(SEQN)
+for(i in imp){
+  imputed <- append(imputed, i)
+}
+imputed
+# Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
   mutate(PAQ655 = ifelse(is.na(PAQ655), round(mean(PAQ655, na.rm = TRUE)), PAQ655))
 summary(exer1517)
 table(exer1517$PAQ655, useNA = "always") # 1 imputation made to 1 day (mean = 0.9856)
 hist(exer1517$PAQ655, breaks = -1:7)
 # Minutes vigorous exercise simple imputation - 11 imputations
+# Change missing values to NA
 exer1517 <- exer1517 %>% 
   mutate(PAD660 = ifelse(PAD660 > 1000, NA, PAD660))
 summary(exer1517) # Went from 7 to 11 NAs, mean = 21.78
+# Keep track of imputations (to compare how many actually imputed after adding covariates)
+imp <- exer1517 %>% filter(is.na(PAD660)) %>% select(SEQN)
+for(i in imp){
+  imputed <- append(imputed, i)
+}
+imputed
+# Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
   mutate(PAD660 = ifelse(is.na(PAD660), round(mean(PAD660, na.rm = TRUE)), PAD660))
 summary(exer1517)
@@ -107,18 +124,34 @@ table(exer1517$PAQ665, useNA = "always") # 5,262 are 7,551 are 2
 table(exer1517$PAQ670, useNA = "always") # 6 are 99 (6 imputations), 7,551 are 0, 1,293 are 3 (2nd biggest cat)
 table(exer1517$PAD675, useNA = "always") # 7 are 9999, 16 NAs (23 imputations), 7,551 are 0, 1,439 are 60 (2nd biggest)
 # Days moderate exercise simple imputation with mean - 6 imputations
+# Change missing values to NA
 exer1517 <- exer1517 %>% 
   mutate(PAQ670 = ifelse(PAQ670 > 10, NA, PAQ670))
 summary(exer1517) # Now 6 NAs, mean = 1.446
+# Keep track of imputations (to compare how many actually imputed after adding covariates)
+imp <- exer1517 %>% filter(is.na(PAQ670)) %>% select(SEQN)
+for(i in imp){
+  imputed <- append(imputed, i)
+}
+imputed
+# Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
   mutate(PAQ670 = ifelse(is.na(PAQ670), round(mean(PAQ670, na.rm = TRUE)), PAQ670))
 summary(exer1517)
 table(exer1517$PAQ670, useNA = "always") # 6 imputation made to 1 day (mean = 1.445)
 hist(exer1517$PAQ670, breaks = -1:7)
 # Minutes moderate exercise simple imputation - 23 imputations
+# Change missing values to NA
 exer1517 <- exer1517 %>% 
   mutate(PAD675 = ifelse(PAD675 > 1000, NA, PAD675))
 summary(exer1517) # Went from 16 to 23 NAs, mean = 26
+# Keep track of imputations (to compare how many actually imputed after adding covariates)
+imp <- exer1517 %>% filter(is.na(PAD675)) %>% select(SEQN)
+for(i in imp){
+  imputed <- append(imputed, i)
+}
+imputed
+# Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
   mutate(PAD675 = ifelse(is.na(PAD675), round(mean(PAD675, na.rm = TRUE)), PAD675))
 summary(exer1517)
@@ -161,7 +194,7 @@ table(exer1517$targetex, useNA = "always") # 8,093 are 0, 4,720 are 1 (mean = 0.
 hist(exer1517$targetex, breaks = 2)
 # Create smaller dataframe with fewer columns
 smex <- exer1517 %>% 
-  dplyr::select(SEQN, targetex, exminwk, modexminwk, vigexminwk)
+  dplyr::select(SEQN, vigexminwk, modexminwk, exminwk, targetex)
 summary(smex) # 12,813 obs of 5 variables
 
 ##### SLEEP
