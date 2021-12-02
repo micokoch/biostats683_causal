@@ -39,19 +39,35 @@ summary(glm.slpex)
 exp(cbind(OR = coef(glm.slpex), confint(glm.slpex)))
 
 # Fit data with covariates and see how effects change
-glm.slpexcov = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + household + 
-                     factor(income) + factor(snoring) + factor(apnea) + bmi + waist + factor(smoke) + 
-                     factor(alcohol) + factor(depressed),
+glm.slpexcov = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+                     factor(household) + factor(income) + factor(snoring) + factor(apnea) + bmi + 
+                     waist + factor(smoke) + factor(alcohol) + factor(depressed),
                    family = binomial(link = "logit"), data = slpexcov1517)
 summary(glm.slpexcov)
 exp(cbind(OR = coef(glm.slpexcov), confint(glm.slpexcov)))
 
 # Removed covariates that have many NAs or seem unimportant
 glm.slpexcov2 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
-                      factor(household) + bmi + waist + factor(depressed),
+                      bmi + waist + factor(depressed),
                    family = binomial(link = "logit"), data = slpexcov1517)
 summary(glm.slpexcov2)
 exp(cbind(OR = coef(glm.slpexcov2), confint(glm.slpexcov2)))
+
+# # Use bmicat instead of bmi - full covariates
+# glm.slpexcov3 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+#                       factor(household) + factor(income) + factor(snoring) + factor(apnea) + 
+#                       relevel(factor(bmicat), ref = 2) + waist + factor(smoke) + factor(alcohol) + 
+#                       factor(depressed),
+#                    family = binomial(link = "logit"), data = slpexcov1517)
+# summary(glm.slpexcov3)
+# exp(cbind(OR = coef(glm.slpexcov3), confint(glm.slpexcov3)))
+# 
+# # Use bmicat instead of bmi - reduced covariates
+# glm.slpexcov4 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+#                       relevel(factor(bmicat), ref = 2) + factor(depressed),
+#                     family = binomial(link = "logit"), data = slpexcov1517)
+# summary(glm.slpexcov4)
+# exp(cbind(OR = coef(glm.slpexcov4), confint(glm.slpexcov4)))
 
 # Look at plots of fitted models (even though they're not very informative.)
 ggplot(data = glm.slpex, mapping = aes(x = targetex, y = targetslp)) +
@@ -106,7 +122,7 @@ mrg <- slpexcov1517 %>%
   summarise(n = n())
 mrg
 # One cell has NA for marital (ex: 1, slp: 0, marital: NA)
-# Smallest cell: ex: 1, slp: 0, marital: 2, count: 115
+# Smallest cell: ex: 1, slp: 0, marital: 1, count: 115
 
 # # Pregnancy
 # slpexcov %>% 
@@ -148,6 +164,15 @@ depression <- slpexcov1517 %>%
 depression
 # Various cells have NAs for depressed (00NA-39, 01NA-144, 10NA-20, 11NA-98)
 # Smallest cells: ex: 1, slp: 0, depressed: 1, count: 16
+
+# BMI Categories
+peso <- slpexcov1517 %>% 
+  dplyr::select(targetex, targetslp, bmicat) %>% 
+  group_by(targetex, targetslp, bmicat) %>% 
+  summarise(n = n())
+peso
+# Various cells have NAs for depressed (00NA-7, 01NA-29, 10NA-1, 11NA-13)
+# Smallest cells: ex: 1, slp: 0, bmicat: 1, count: 6
 
 #####
 # slpexcov %>% count(pregnancy)

@@ -85,12 +85,14 @@ demogconf1517 %>% count(RIDRETH1) # 655 Mex/Am (1), 448 Hisp(2), 1,208 White (3)
 # Check that there are no missing values
 which(is.na(demogconf1517$RIDRETH1))
 # Confirmed that there is no missing data for race/ethnicity in NHANES codebooks
-# Combine Mexican American and other Hispanic and factor race/eth
+# Combine Mexican American and other Hispanic and factor race/eth, put White as reference
 demogconf1517 <- demogconf1517 %>% 
   mutate(raceeth = ifelse(RIDRETH1 == 1, RIDRETH1, RIDRETH1 - 1)) %>% 
+  mutate(raceeth = ifelse(raceeth == 2, raceeth - 2, ifelse(raceeth == 1, raceeth + 1, raceeth))) %>% 
+  mutate(raceeth = ifelse(raceeth == 0, raceeth + 1, raceeth)) %>% 
   mutate(raceeth = factor(raceeth))
 # Check that after factoring, race/ethnicity codes are the same
-demogconf1517 %>% count(raceeth) # 1,103 Hisp, 1,208 White, 895 Black, 803 Other
+demogconf1517 %>% count(raceeth) # 1,208 White, 1,103 Hisp, 895 Black, 803 Other
 # Now demogconf1517 has 4,009 obs of 15 variables
 
 # DMDBORN4
@@ -142,12 +144,15 @@ demogconf1517 <- demogconf1517 %>%
 # Check that after factoring, codes are the same
 demogconf1517 %>% count(marital)
 hist(demogconf1517$marital, breaks = 0:6)
-## There are few-ish unmarried people -> combine married & living with partner (1&6), and living alone (2-5)
+# There are few-ish unmarried people -> combine married & living with partner (1&6), and living alone (2-5)
+# Put in increasing order, so that living alone is reference, and marriage is comparison
 demogconf1517 <- demogconf1517 %>% 
   mutate(marital = ifelse(marital == 6, 1, marital)) %>% 
-  mutate(marital = ifelse(marital >1, 2, marital))
+  mutate(marital = ifelse(marital >1, 2, marital)) %>% 
+  mutate(marital = ifelse(marital == 2, marital - 2, marital)) %>% 
+  mutate(marital = marital + 1)
 # Check numbers
-demogconf1517 %>% count(marital) # 2,542 living with partner, 1,645 living without partner
+demogconf1517 %>% count(marital) # 1,465 living without partner, 2,542 living with partner, 2 NA
 hist(demogconf1517$marital, breaks = 0:2)
 # Now demogconf1517 has 4,009 obs of 19 variables
 
@@ -281,13 +286,26 @@ slpexcov <- slpexcov %>% mutate(bmi = BMXBMI) %>% select(-BMXBMI)
 summary(slpexcov)
 # Now slpexcov has 3,792 obs of 21 variables
 
+#BMI Categories - Decided to create categories
+slpexcov <- slpexcov %>% 
+  mutate(bmicat = case_when(
+    bmi < 18.5 ~ 1,
+    bmi < 25 ~ 2,
+    bmi < 30 ~ 3,
+    bmi >= 30 ~ 4
+  ))
+hist(slpexcov$bmicat, breaks = 0:4)
+table(slpexcov$bmicat, useNA = 'always')
+# 51 underweight, 918 healthy wt, 1,321 overweight, 1,452 obese, 50 NA
+# Now slpexcov has 3,792 obs of 22 variables
+
 # BMXWAIST - Waist Cirucmference
 summary(slpexcov$BMXWAIST)
 hist(slpexcov$BMXWAIST)
 # Range: 62.3 - 169.6, median: 99.2, NA: 159
 slpexcov <- slpexcov %>% mutate(waist = BMXWAIST) %>% select(-BMXWAIST)
 summary(slpexcov)
-# Now slpexcov has 3,792 obs of 21 variables
+# Now slpexcov has 3,792 obs of 22 variables
 
 ### Smoking confounders
 # Decided to use SMQ020 - Smoked at least 100 cigarettes in life
@@ -302,13 +320,13 @@ smoke2017 <- nhanes('SMQ_J') %>%
 # Combine years
 smoke1517 <- bind_rows(smoke2015, smoke2017) # 13,725 obs of 2 variables
 # Merge with slpex
-slpexcov <- merge(slpexcov, smoke1517, by = 'SEQN') # 3,792 obs of 22 variables
+slpexcov <- merge(slpexcov, smoke1517, by = 'SEQN') # 3,792 obs of 23 variables
 summary(slpexcov)
 
 # SMQ020 - Smoked at least 100 cigarettes in life
 summary(slpexcov$SMQ020)
 table(slpexcov$SMQ020) # 1,848 yes (1), 1,942 no (2), 2 refused (7)
-# Set don't know (9) and refused (7) to NA
+# Set don't know (9) and refused (7) to NA, and set no to 0, and yes to 1
 slpexcov <- slpexcov %>% 
   mutate(smoke = ifelse(SMQ020 == 7, NA, ifelse(SMQ020 == 9, NA, factor(SMQ020)))) %>% 
   mutate(smoke = ifelse(smoke == 2, smoke - 2, smoke)) %>% 
@@ -317,7 +335,7 @@ slpexcov <- slpexcov %>%
 slpexcov %>% count(smoke) # 1,942 no (0), 1,848 yes (1), 2 refused (NA)
 hist(slpexcov$smoke, breaks = -1:1)
 summary(slpexcov)
-# Now slpexcov has 3,792 obs of 22 variables
+# Now slpexcov has 3,792 obs of 23 variables
 
 ### Alcohol confounders
 # Decided to use ALQ130 - Avg # alcoholic drinks/day - past 12 mos
@@ -372,10 +390,18 @@ alcohol2017 <- alcohol2017 %>% select(-ALQ111, -ALQ121, -ALQ130)
 summary(alcohol2017) # 5,533 obs of 2 variables
 # Combine years
 alcohol1517 <- bind_rows(alcohol2015, alcohol2017) # 11,268 obs of 2 variables
+table(alcohol1517$alcohol, useNA = "always") # 1,435 in NA, 3,362 in 0, 2,200 in 1, 1,935 in 2, 938 in 3, 1,398 in 4+
+hist(alcohol1517$alcohol, breaks = -1:4)
+# Official guidelines for men are to limit to under 2 alcoholic drinks/day - reduce categories
+# New categories where 0 = no alcohol, 1= 1-2 drinks/day, 2 = 3+ drinks/day
+alcohol1517 <- alcohol1517 %>% 
+  mutate(alcohol = ifelse(alcohol == 2, alcohol - 1, ifelse(alcohol > 2, 2, alcohol)))
+table(alcohol1517$alcohol, useNA = "always") # 3,362 in 0, 4,135 in 1, 2,336 in 2, 1,435 in NA
+hist(alcohol1517$alcohol, breaks = -1:2)
 # Merge with slpex
 slpexcov <- merge(slpexcov, alcohol1517, by = 'SEQN') # 3,792 obs of 23 variables
 summary(slpexcov)
-# Now slpexcov has 3,792 obs of 23 variables
+# Now slpexcov has 3,792 obs of 24 variables
 
 ### Depression confounders
 # Use PHQ-9 (sum first 9 questions) and dicotimize with 10 or more being depression
@@ -387,10 +413,10 @@ depress2017 <- nhanes('DPQ_J')
 # Combine years
 depress1517 <- bind_rows(depress2015, depress2017) # 11,268 obs of 11 variables
 # Merge with slpex
-slpexcov <- merge(slpexcov, depress1517, by = 'SEQN') # 3,792 obs of 33 variables
+slpexcov <- merge(slpexcov, depress1517, by = 'SEQN') # 3,792 obs of 34 variables
 summary(slpexcov)
 # Remove DPQ100, since we won't use it for PHQ-9
-slpexcov <- select(slpexcov, -DPQ100)  # 3,792 obs of 32 variables
+slpexcov <- select(slpexcov, -DPQ100)  # 3,792 obs of 33 variables
 summary(slpexcov)
 
 # PHQ-9 - Patient Health Questionnaire
@@ -449,14 +475,14 @@ table(phq$phq9)
 phq <- phq %>% mutate(depressed = ifelse(phq9 > 9, 1, ifelse(phq9 < 10, 0, NA)))
 head(phq, 20)
 hist(phq$depressed, breaks = 2)
-table(phq$depressed) # 3,241 depressed, and 250 not depressed - possible positivity violations
+table(phq$depressed) # 3,241 not depressed, and 250 depressed
 # Subset phq to only include sum and indicator
 phq <- phq %>% select(SEQN, phq9, depressed)
 summary(phq)
 # Merge with slpexcov and remove individual DPQ question scores
 slpexcov <- merge(slpexcov, phq, by = 'SEQN') %>% 
   select(-DPQ010, -DPQ020, -DPQ030, -DPQ040, -DPQ050, -DPQ060, -DPQ070, -DPQ080, -DPQ090)
-summary(slpexcov) # 3,792 obs of 25 variables
+summary(slpexcov) # 3,792 obs of 26 variables
 
 ### Review how many variables I actually imputed
 slpexcov %>% filter(SEQN %in% imputed)
@@ -466,7 +492,7 @@ slpexcov %>% filter(SEQN %in% imputed)
 # After discussion with team, decided to drop some variables
 # Create table with agreed upon variables
 slpexcov1517 <- dplyr::select(slpexcov, SEQN, exminwk, targetex, slphrs, targetslp, age, raceeth, educ, marital, 
-                         household, income, snoring, apnea, bmi, waist, smoke, alcohol, phq9, depressed)
+                         household, income, snoring, apnea, bmi, bmicat, waist, smoke, alcohol, phq9, depressed)
 summary(slpexcov1517)
 write_csv(slpexcov1517, "slpexcov1517.csv")
 
