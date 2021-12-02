@@ -396,57 +396,79 @@ summary(slpexcov)
 
 # PHQ-9 - Patient Health Questionnaire
 # Subset dataframe to PHQ questions for ease of use
-phq <- select(slpexcov, SEQN, DPQ010:DPQ090)
+phq <- select(slpexcov, SEQN, DPQ010:DPQ090) # 3,792 obs of 10 variables
 summary(phq)
 # Check distribution of unique values
 phq %>% 
   select(-SEQN) %>% 
   sapply(table) # 1-5 people refused (7) or didn't know (9) in each question
-#Count unique responses of 7 or 9
-phq %>% filter(DPQ010 == 7 | DPQ010 == 9)
-# Set refused (7) and don't know (9) to NA
-phq %>% 
-  for(j in 1:nrow(phq)){
-    if(j == 7) {print("hi")}
-  }
-
-for(j in 1:nrow(phq))
-{
-  for(k in 1:ncol(age_wealth_total))
-  {
-    age_wealth_total[j,k] <- mean(c(age_wealth1[j,k], age_wealth5[j,k]))
+# Subset rows that have NAs
+deprnas <- phq[!complete.cases(phq), ]
+deprnas %>% summary() # DPQ010 - DPQ030 have some zeros
+# Most are all NAs, but some, like 86784 have some zeros and NAs
+# Set all values to NA
+deprnas[deprnas == 0] <- NA
+deprnas %>% summary() # All values are now set to NA in deprnas
+# Subset unique responses of 7 or 9 across questions
+temp <- deprincomp <- na.omit(deprnas) # Use last set to create an empty subset with same column names
+for(i in 2:10){
+  temp <- filter(phq, (phq[, i] == 7 | phq[, i] == 9))
+  deprincomp <- bind_rows(deprincomp, temp) %>% distinct(SEQN, .keep_all = T)
+}
+deprincomp
+# Set all participants with 7 or 9 in any question to NA
+for(i in seq_len(nrow(deprincomp))){
+  for(j in 2:10){
+    deprincomp[i, j] <- NA
   }
 }
-
-
-
-# # BMXBMI - BMI
-# summary(slpexcov$BMXBMI)
-# hist(slpexcov$BMXBMI)
-# # Range: 15.10 - 86.20, median: 28.30, NA: 50
-# slpexcov <- slpexcov %>% mutate(bmi = BMXBMI) %>% select(-BMXBMI)
-# summary(slpexcov)
-# # Now slpexcov has 3,792 obs of 21 variables
-
-## Should add depression
-
+deprincomp
+# Combine deprincomp and deprnas
+nadepr <- bind_rows(deprincomp, deprnas)
+head(nadepr, 20)
+nadepr %>% summary()
+# Create vector with list of SEQN that (should) have NAs
+nadepr.v <- nadepr$SEQN
+# Update phq so that it has NAs in desired places
+for(i in seq_along(nadepr.v)){
+  if(nadepr.v[i] %in% phq$SEQN){
+    q <- which(phq$SEQN == nadepr.v[i])
+    for(j in 2:10){
+      phq[q, j] <- nadepr[i, j]
+    }
+  }
+}
+# Check that change was done correctly
+head(phq, 20)
+phq %>% filter(is.na(DPQ030)) %>% summary()
+# Add values of DPQ for PHQ-9 score
+phq <- phq %>% mutate(phq9 = rowSums(phq[,2:10]))
+head(phq, 20)
+hist(phq$phq9)
+table(phq$phq9)
+# Create Depression indicator if phq9 is 10 or more
+phq <- phq %>% mutate(depressed = ifelse(phq9 > 9, 1, ifelse(phq9 < 10, 0, NA)))
+head(phq, 20)
+hist(phq$depressed, breaks = 2)
+table(phq$depressed) # 3,241 depressed, and 250 not depressed - possible positivity violations
+# Subset phq to only include sum and indicator
+phq <- phq %>% select(SEQN, phq9, depressed)
+summary(phq)
+# Merge with slpexcov and remove individual DPQ question scores
+slpexcov <- merge(slpexcov, phq, by = 'SEQN') %>% 
+  select(-DPQ010, -DPQ020, -DPQ030, -DPQ040, -DPQ050, -DPQ060, -DPQ070, -DPQ080, -DPQ090)
+summary(slpexcov) # 3,792 obs of 25 variables
 
 ### Review how many variables I actually imputed
 slpexcov %>% filter(SEQN %in% imputed)
 # Currently there are only 10 imputed values
 
-#####
-## Create table with covariates
-# cov1517 <- dplyr::select(demogconf1517, SEQN, gender, age, raceeth, usborn, usyears, educ, marital, 
-#                          household, income)
-# summary(cov1517)
-# write_csv(slpex, "cov1517.csv")
-# 
-# # Merge slpex and confounders
-# slpexconf <- merge(slpex, cov1517, by = 'SEQN')
-# summary(slpexconf)
-# head(slpexconf)
-# tail(slpexconf)
-# write_csv(slpexconf, "slpexconf.csv")
+#### Final steps for table
+# After discussion with team, decided to drop some variables
+# Create table with agreed upon variables
+slpexcov1517 <- dplyr::select(slpexcov, SEQN, exminwk, targetex, slphrs, targetslp, age, raceeth, educ, marital, 
+                         household, income, snoring, apnea, bmi, waist, smoke, alcohol, phq9, depressed)
+summary(slpexcov1517)
+write_csv(slpexcov1517, "slpexcov1517.csv")
 
 #####
