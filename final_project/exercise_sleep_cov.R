@@ -1,5 +1,5 @@
 ## Exercise and sleep and covariates
-#Libraries
+# Libraries
 # library(tidyverse)
 # library(nhanesA)
 # 
@@ -9,10 +9,29 @@ getwd()
 slpexcov1517 <- read_csv("slpexcov1517.csv")
 summary(slpexcov1517)
 
+# Binary table
+binslpexcov1517 <- dplyr::select(slpexcov1517, SEQN, targetex, targetslp)
+summary(binslpexcov1517)
+
+#Contingency tables
+binslpexcov1517 %>% select(-SEQN) %>% table()
+#          targetslp
+# targetex    0    1
+#        0  544 1683
+#        1  286 1279
+
 slpexcov1517 %>% 
   dplyr::select(targetex, targetslp) %>% 
   group_by(targetex, targetslp) %>% 
   summarise(n = n())
+# # A tibble: 4 × 3
+# # Groups:   targetex [2]
+#   targetex targetslp     n
+#       <dbl>     <dbl> <int>
+# 1        0         0   544
+# 2        0         1  1683
+# 3        1         0   286
+# 4        1         1  1279
 
 # Fit a logistic model to the data without confounders and look at results
 glm.slpex = glm(targetslp ~ targetex, family = binomial(link = "logit"), data = slpexcov1517)

@@ -77,7 +77,8 @@ imputed
 exer1517 <- exer1517 %>% 
   mutate(PAQ655 = ifelse(is.na(PAQ655), round(mean(PAQ655, na.rm = TRUE)), PAQ655))
 summary(exer1517)
-table(exer1517$PAQ655, useNA = "always") # 1 imputation made to 1 day (mean = 0.9856)
+table(exer1517$PAQ655, useNA = "always") # 1 imputation made to 1 day
+# Previous mean = 0.99, smaller dataset mean = 1.09
 hist(exer1517$PAQ655, breaks = -1:7)
 # Minutes vigorous exercise simple imputation - 11 imputations
 # Change missing values to NA
@@ -92,9 +93,12 @@ for(i in imp){
 imputed
 # Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
-  mutate(PAD660 = ifelse(is.na(PAD660), round(mean(PAD660, na.rm = TRUE)), PAD660))
+  # mutate(PAD660 = ifelse(is.na(PAD660), round(mean(PAD660, na.rm = TRUE)), PAD660))
+  # Previously, 11 imputations made to 22 minutes (mean = 21.78)
+  mutate(PAD660 = ifelse(is.na(PAD660), 28, PAD660))
+# Corrected imputation to 28, after reviewing mean on smaller dataset
 summary(exer1517)
-table(exer1517$PAD660, useNA = "always") # 11 imputations made to 22 minutes (mean = 21.78)
+table(exer1517$PAD660, useNA = "always") # 11 imputations made to 28 minutes (mean = 28.28)
 hist(exer1517$PAD660)
 # Create new column of weekly minutes of vigorous exercise
 exer1517 <- exer1517 %>% 
@@ -138,7 +142,8 @@ imputed
 exer1517 <- exer1517 %>% 
   mutate(PAQ670 = ifelse(is.na(PAQ670), round(mean(PAQ670, na.rm = TRUE)), PAQ670))
 summary(exer1517)
-table(exer1517$PAQ670, useNA = "always") # 6 imputation made to 1 day (mean = 1.445)
+table(exer1517$PAQ670, useNA = "always") # 6 imputations made to 1 day
+# Previous mean = 1.45, smaller dataset mean = 1.43
 hist(exer1517$PAQ670, breaks = -1:7)
 # Minutes moderate exercise simple imputation - 23 imputations
 # Change missing values to NA
@@ -151,11 +156,25 @@ for(i in imp){
   imputed <- append(imputed, i)
 }
 imputed
+
 # Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
-  mutate(PAD675 = ifelse(is.na(PAD675), round(mean(PAD675, na.rm = TRUE)), PAD675))
+  # mutate(PAD660 = ifelse(is.na(PAD660), round(mean(PAD660, na.rm = TRUE)), PAD660))
+  # Previously, 11 imputations made to 22 minutes (mean = 21.78)
+  mutate(PAD660 = ifelse(is.na(PAD660), 28, PAD660))
+# Corrected imputation to 28, after reviewing mean on smaller dataset
 summary(exer1517)
-table(exer1517$PAD675, useNA = "always") # 23 imputations made to 26 minutes (mean = 26)
+table(exer1517$PAD660, useNA = "always") # 11 imputations made to 28 minutes (mean = 28.28)
+hist(exer1517$PAD660)
+
+# Impute NAs to rounded mean
+exer1517 <- exer1517 %>% 
+  # mutate(PAD675 = ifelse(is.na(PAD675), round(mean(PAD675, na.rm = TRUE)), PAD675))
+  # Previously, 23 imputations made to 26 minutes (mean = 26)
+  mutate(PAD675 = ifelse(is.na(PAD675), 31, PAD675))
+# Corrected imputation to 31, after reviewing mean on smaller dataset
+summary(exer1517)
+table(exer1517$PAD675, useNA = "always") # 23 imputations made to 31 minutes (mean = 30.86)
 hist(exer1517$PAD675)
 #Create new column of weekly minutes of moderate exercise
 exer1517 <- exer1517 %>% 
@@ -175,7 +194,7 @@ highmodex <- exer1517 %>% subset(PAD675 > 300)
 highmodex
 # No real red flags after looking at participants in detail
 
-#Create new column of sum of moderate and vigorous exercise (multiply vigorous exercise times two)
+# Create new column of sum of moderate and vigorous exercise (multiply vigorous exercise times two)
 exer1517 <- exer1517 %>% 
   mutate(exminwk = ((vigexminwk*2) + modexminwk))
 summary(exer1517) #12,813 obs of 12 variables
@@ -186,11 +205,11 @@ exer1517 <- exer1517 %>%
 hist(exer1517$lg2exminwk) # Now we have a normally distributed set of values
 summary(exer1517) # 12,813 obs of 13 variables
 
-#Create new binary variable indicating whether person did more than 150 min exercise/wk
+# Create new binary variable indicating whether person did more than 150 min exercise/wk
 exer1517 <- exer1517 %>% 
   mutate(targetex = ifelse(exminwk < 150, 0, 1))
 summary(exer1517) # 12,813 obs of 14 variables
-table(exer1517$targetex, useNA = "always") # 8,093 are 0, 4,720 are 1 (mean = 0.3684)
+table(exer1517$targetex, useNA = "always") # 8,091 are 0, 4,722 are 1 (mean = 0.3685)
 hist(exer1517$targetex, breaks = 2)
 # Create smaller dataframe with fewer columns
 smex <- exer1517 %>% 
@@ -323,23 +342,23 @@ write_csv(slpex, "slpex.csv")
 binslpex <- dplyr::select(slpex, SEQN, targetex, targetslp)
 summary(binslpex)
 
-#Contingency tables
+# Contingency tables
 binslpex %>% select(-SEQN) %>% table()
 #          targetslp
 # targetex    0    1
-#        0 1416 6405
-#        1  649 3628
+#        0 1416 6403
+#        1  649 3630
 
 binslpex %>% select(-SEQN) %>% table %>% prop.table(margin = 1)
 #           targetslp
 # targetex         0         1
-#    0     0.1810510 0.8189490
-#    1     0.1517419 0.8482581
+#    0     0.1810973 0.8189027
+#    1     0.1516710 0.8483290
 binslpex %>% select(-SEQN) %>% table %>% prop.table(margin = 2)
 #           targetslp
 # targetex         0         1
-#    0     0.6857143 0.6383933
-#    1     0.3142857 0.3616067
+#    0     0.6857143 0.6381940
+#    1     0.3142857 0.3618060
 
 binslpex %>% 
   dplyr::select(-SEQN) %>% 
@@ -350,9 +369,9 @@ binslpex %>%
 #   targetex targetslp     n
 #       <dbl>     <dbl> <int>
 # 1        0         0  1416
-# 2        0         1  6405
+# 2        0         1  6403
 # 3        1         0   649
-# 4        1         1  3628
+# 4        1         1  3630
 
 ####### ANALYSIS
 # library(gtsummary)
