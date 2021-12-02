@@ -362,7 +362,6 @@ alcohol2017 <- alcohol2017 %>%
   mutate(alcohol = ifelse(alcohol == 777, NA, ifelse(alcohol == 999, NA, alcohol))) # Set refused & don't know to NA
 table(alcohol2017$alcohol, useNA = "always") # 410 in NA, 1,634 in 0, 1,317 in 1, range 1:15
 hist(alcohol2017$alcohol, breaks = -1:15)
-
 # Very skewed values with most in zero -> reduce categories to 0-4+
 alcohol2017 <- alcohol2017 %>% 
   mutate(alcohol = ifelse(alcohol > 4, 4, alcohol))
