@@ -42,7 +42,7 @@ exercise2017 <- nhanes('PAQ_J') %>%
 exer1517 <- bind_rows(exercise2015, exercise2017) # initially 15,111 observations
 exer1517 <- exer1517 %>% 
   drop_na('PAQ650', 'PAQ665') # fell to 12,819 obs
-summary(exer1517) # PAQ655 & PAD660 have 9,192 & 9,199 NA each, and PAQ670 & PAD675 have 7,555 & 7,572 NA each
+summary(exer1517) # PAQ655 & PAD660 have 9,192 & 9,199 NA each, & PAQ670 & PAD675 have 7,555 & 7,572 NA each
 
 ### Vigorous exercise
 # Look at responses for vigorous exercise
@@ -59,8 +59,8 @@ summary(exer1517) # All NAs for PAQ655 disappear and only seven remain for PAD66
 # Make a simple imputation of the rounded mean if days or minutes of exercise not specified
 # First look at how many will be imputed
 table(exer1517$PAQ650, useNA = "always") # 3,627 are 1, 9,190 are 2
-table(exer1517$PAQ655, useNA = "always") # Only 1 is 99 (1 imputation), 9,190 are 0, 915 are 3 (2nd biggest cat)
-table(exer1517$PAD660, useNA = "always") # 4 are 9999, 7 NAs (11 imputations), 9,190 are 0, 1,122 are 60 (2nd biggest)
+table(exer1517$PAQ655, useNA = "always") # Only 1 is 99 (1 imputation), 9,190 are 0, 915 are 3...
+table(exer1517$PAD660, useNA = "always") # 4 are 9999, 7 NAs (11 imputations), 9,190 are 0, 1,122 are 60..
 # Days vigorous exercise simple imputation with mean - one imputation
 # Change missing values to NA
 exer1517 <- exer1517 %>% 
@@ -125,8 +125,8 @@ summary(exer1517) # All NAs for PAQ670 disappear and only 16 remain for PAD675
 # Make a simple imputation of the mean if days or minutes of exercise not specified
 # First look at how many will be imputed
 table(exer1517$PAQ665, useNA = "always") # 5,262 are 7,551 are 2
-table(exer1517$PAQ670, useNA = "always") # 6 are 99 (6 imputations), 7,551 are 0, 1,293 are 3 (2nd biggest cat)
-table(exer1517$PAD675, useNA = "always") # 7 are 9999, 16 NAs (23 imputations), 7,551 are 0, 1,439 are 60 (2nd biggest)
+table(exer1517$PAQ670, useNA = "always") # 6 are 99 (6 imputations), 7,551 are 0, 1,293 are 3...
+table(exer1517$PAD675, useNA = "always") # 7 are 9999, 16 NAs (23 imputations), 7,551 are 0, 1,439 are 60..
 # Days moderate exercise simple imputation with mean - 6 imputations
 # Change missing values to NA
 exer1517 <- exer1517 %>% 

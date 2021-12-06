@@ -334,6 +334,7 @@ slpexcov <- slpexcov %>%
 # Check that after factoring, codes are the same
 slpexcov %>% count(smoke) # 1,942 no (0), 1,848 yes (1), 2 refused (NA)
 hist(slpexcov$smoke, breaks = -1:1)
+table(slpexcov$smoke, useNA = 'always')
 summary(slpexcov)
 # Now slpexcov has 3,792 obs of 23 variables
 

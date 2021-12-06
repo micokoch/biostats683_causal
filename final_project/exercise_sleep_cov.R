@@ -52,6 +52,7 @@ glm.slpexcov2 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) 
                    family = binomial(link = "logit"), data = slpexcov1517)
 summary(glm.slpexcov2)
 exp(cbind(OR = coef(glm.slpexcov2), confint(glm.slpexcov2)))
+# targetex (OR = 1.3890867 (1.1567584-1.6707580), p = 0.000605)
 
 # # Use bmicat instead of bmi - full covariates
 # glm.slpexcov3 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
@@ -94,6 +95,8 @@ racet <- slpexcov1517 %>%
   summarise(n = n())
 racet
 # Smallest cell: ex: 1, slp: 0, raceeth: 4, count: 48
+
+table(slpexcov1517[,c('raceeth', 'educ', 'targetex')])
 
 # # Years in the US
 # usys <- slpexcov %>% 
@@ -141,6 +144,8 @@ home <- slpexcov1517 %>%
 home
 # Smallest cells: ex: 1, slp: 0, household: (1|6), count: 30
 
+table(slpexcov1517[,c('marital', 'household', 'targetex')])
+
 # Income
 plata <- slpexcov1517 %>% 
   dplyr::select(targetex, targetslp, income) %>% 
@@ -165,6 +170,8 @@ depression
 # Various cells have NAs for depressed (00NA-39, 01NA-144, 10NA-20, 11NA-98)
 # Smallest cells: ex: 1, slp: 0, depressed: 1, count: 16
 
+table(slpexcov1517[,c('depressed', 'income', 'targetex')])
+
 # BMI Categories
 peso <- slpexcov1517 %>% 
   dplyr::select(targetex, targetslp, bmicat) %>% 
@@ -173,6 +180,8 @@ peso <- slpexcov1517 %>%
 peso
 # Various cells have NAs for depressed (00NA-7, 01NA-29, 10NA-1, 11NA-13)
 # Smallest cells: ex: 1, slp: 0, bmicat: 1, count: 6
+
+table(slpexcov1517[,c('depressed', 'bmicat', 'targetex')])
 
 #####
 # slpexcov %>% count(pregnancy)
