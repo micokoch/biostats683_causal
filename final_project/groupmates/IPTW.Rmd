@@ -1,0 +1,121 @@
+---
+title: "IPTW Causal Project"
+output: html_notebook
+---
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+
+IPTW estimand:
+
+$\Psi(\mathbb{P}_0)$ = $\mathbb{E}_0$$[\frac{\mathbb{I}(A=1)}{\mathbb{P_0}(A=1|W)}Y]$ - $\mathbb{E}_0$$[\frac{\mathbb{I}(A=0)}{\mathbb{P_0}(A=0|W)}Y]$
+
+```{r}
+ObsData <- read.csv("slpexcov1517.csv")
+
+ObsData <- ObsData %>% dplyr::select(-SEQN, -exminwk, -slphrs, -household, -income, -snoring,
+                              -apnea, -bmicat, -smoke, -alcohol, -phq9)
+
+ObsData <- ObsData %>% mutate(A = targetex) %>% mutate(Y = targetslp) %>% 
+  dplyr::select(-targetex, -targetslp)
+
+ObsData <- na.omit(ObsData)
+
+names(ObsData)
+```
+```{r}
+summary(ObsData)
+```
+
+
+# 1) Create the propensity scores
+
+First fit the logistic regression model:
+```{r}
+fit<-glm(A~factor(raceeth)+factor(educ)+factor(marital)+bmi+waist+factor(depressed),
+    family="binomial",data=ObsData)
+```
+
+Get propensity scores:
+```{r}
+prob.1W <- predict(fit, type= "response") #prediced probability of getting the exercise
+
+prob.0W <- 1 - prob.1W #prediced probability of not getting the exercise
+```
+
+look at distribution of propensity scores:
+```{r}
+summary(prob.1W)
+```
+```{r}
+summary(prob.0W)
+```
+
+# 2) Create the weights:
+```{r}
+wt1 <- as.numeric(ObsData$A==1)/prob.1W
+wt0 <- as.numeric(ObsData$A==0)/prob.0W
+```
+
+Look at weights:
+```{r}
+summary(wt1)
+```
+```{r}
+summary(wt0)
+```
+# 3) Estimate:
+```{r}
+IPTW<- mean( wt1*ObsData$Y) - mean( wt0*ObsData$Y)
+
+IPTW
+```
+
+# 4) Arbitrarily truncate weights at 10, to see what happens:
+
+First see how many weights are greater than 10:
+```{r}
+sum(wt1>10)
+sum(wt0>10)
+```
+```{r}
+wt1.trunc<- wt1
+wt1.trunc[ wt1.trunc>10] <-10
+```
+
+```{r}
+wt0.trunc<- wt0
+wt0.trunc[ wt0.trunc>10] <-10
+```
+
+IPTW with truncated weights at 10:
+```{r}
+mean(wt1.trunc*ObsData$Y) - mean( wt0.trunc*ObsData$Y)
+```
+What about truncated at 5?
+```{r}
+sum(wt1>5)
+sum(wt0>5)
+```
+```{r}
+wt1.trunc5<- wt1
+wt1.trunc5[ wt1.trunc5>5] <-5
+```
+
+```{r}
+wt0.trunc5<- wt0
+wt0.trunc5[ wt0.trunc>5] <-5
+```
+
+IPTW with truncated weights at 10:
+```{r}
+mean(wt1.trunc5*ObsData$Y) - mean( wt0.trunc5*ObsData$Y)
+```
+# 5) Stabilized IPTW estimator - Modified Horwitz Thompson estimator
+```{r}
+mean( wt1*ObsData$Y)/mean( wt1) - mean( wt0*ObsData$Y)/mean( wt0)
+
+```
+

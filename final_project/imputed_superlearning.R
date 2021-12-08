@@ -220,13 +220,166 @@ hist(wt1[wt1 > 5])
 hist(wt1[wt1>8])
 table(wt1[wt1>8])
 # There is only one weight ~ 18.4, two between 10-12,  eight between 8-10
-# Point estimate
-iptw <- mean(wt1*ObsData$targetslp) - mean(wt0*ObsData$targetslp)
+summary(wt0)
+# The largest weight is 5.0815, which does not suggest a positivity violation
+hist(wt0, breaks = 0:6)
+# Almost all weights between 1 and 2
 
+# Point estimate for risk difference
+iptw.rd <- mean(wt1*ObsData$targetslp) - mean(wt0*ObsData$targetslp)
+iptw.rd
+# Point estimate risk difference = 0.054164
+# Point estimate for odds ratio
+iptw.or <- (mean(wt1*ObsData$targetslp)/(1-mean(wt1*ObsData$targetslp))) /
+  (mean(wt0*ObsData$targetslp)/(1-(mean(wt0*ObsData$targetslp))))
+iptw.or
+# Point estimate odds ratio = 1.376661
 
+# Truncate weights at 8
+sum(wt1 > 8)
+wt1.trunc <- wt1
+wt1.trunc[ wt1.trunc > 8] <- 8
+sum(wt0 > 8)
+wt0.trunc <- wt0
+wt0.trunc[wt0.trunc > 8] <- 8
+# IPTW estimand with truncated weights
+# Risk difference
+iptw.tr.rd <- mean(wt1.trunc*ObsData$targetslp) - mean(wt0.trunc*ObsData$targetslp)
+iptw.tr.rd
+# Point estimate for truncated risk difference = 0.04982629
+# Odds ratio
+iptw.tr.or <- (mean(wt1.trunc*ObsData$targetslp)/(1-mean(wt1.trunc*ObsData$targetslp))) /
+              (mean(wt0.trunc*ObsData$targetslp)/(1-(mean(wt0.trunc*ObsData$targetslp))))
+iptw.tr.or
+# Point estimate for truncated odds ratio = 1.338776
+
+# Stabilized IPTW estimator - Modified Horvitz-Thompson estimator
+# Risk difference
+iptw.st.rd <- sum(wt1*ObsData$targetslp) / sum(wt1) - sum(wt0*ObsData$targetslp) / sum(wt0)
+iptw.st.rd
+# RD = 0.04489871
+# Odds ratio
+iptw.st.or <- ((sum(wt1.trunc*ObsData$targetslp)/sum(wt1))/((sum(1-wt1.trunc*ObsData$targetslp))/sum(wt1))) /
+                 ((sum(wt0.trunc*ObsData$targetslp)/sum(wt0))/((sum(1-wt0.trunc*ObsData$targetslp))/sum(wt0)))
+iptw.st.or
+# OR = 1.338776
+
+# Unadjusted Estimator
+unadj.rd <- mean(ObsData[ObsData$targetex==1, 'targetslp']) - mean(ObsData[ObsData$targetex==0, 'targetslp'])
+unadj.rd
+# RD = 0.06152721
+unadj.or <- (mean(ObsData[ObsData$targetex==1, 'targetslp'])/(1-mean(ObsData[ObsData$targetex==1, 'targetslp']))) /
+              (mean(ObsData[ObsData$targetex==0, 'targetslp'])/(1-(mean(ObsData[ObsData$targetex==0, 'targetslp']))))
+unadj.or
+# OR = 1.445504
+
+# G Computation
+outcome.reg = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+                         bmi + waist + factor(depressed),
+                       family = binomial(link = "logit"), data = ObsData)
+exp <- unexp <- ObsData
+exp$targetex <- 1
+unexp$targetex <- 0
+# Risk difference
+SS.rd <- mean(predict(outcome.reg, newdata=exp, type='response')) - 
+  mean(predict(outcome.reg, newdata=unexp, type='response'))
+SS.rd
+# SS = 0.04951699
+# Odds ratio
+SS.or <- ((mean(predict(outcome.reg, newdata=exp, type='response'))) / 
+  (1-mean(predict(outcome.reg, newdata=exp, type='response')))) /
+  ((mean(predict(outcome.reg, newdata=unexp, type='response'))) / 
+     (1-mean(predict(outcome.reg, newdata=unexp, type='response'))))
+SS.or
+# SS = 1.343719
+
+# Compare different results
+# Risk difference
+round(data.frame(iptw.rd, iptw.tr.rd, iptw.st.rd, unadj.rd, SS.rd)*100, 2)
+# Odds ratio
+round(data.frame(iptw.or, iptw.tr.or, iptw.st.or, unadj.or, SS.or), 2)
 
 #####
 ## Super Learning
+library(SuperLearner)
+# Read in data to be safe
+set.seed(252)
+ObsDataPrimary <- read.csv("imputed.full.csv") # 3,792 obs of 19 variables
+# Use only final variable set for analysis
+ObsData <- ObsDataPrimary %>% select(-SEQN, -exminwk, -slphrs, -household, -income, -snoring,
+                                     -apnea, -smoke, -alcohol, -phq9)
+# Rename exposure A and outcome Y for simplicity
+ObsData <- ObsData %>% rename(Y = targetslp) %>% 
+  rename(A = targetex)
+# 3,792 obs of 9 variables
+# Check NAs in dataset
+colSums(is.na(ObsData))
+# There are no missing values
+summary(ObsData)
+# Specify libararies
+SL.library <- c("SL.mean", "SL.glm", "SL.step.interaction", "SL.earth", "SL.glmnet", "SL.ranger")
+
+# Hardcoding TMLE in Super Learner didn't work well
+# # Create a function to handcode TMLE with Super Learner
+# run.tmle <- function(ObsData, SL.library){
+#   ## Simple substitution estimator
+#   X <-subset(ObsData, select = c(A, age, raceeth, educ, marital, bmi, waist, depressed))
+#   X1 <- X0 <- X
+#   X1$A <- 1
+#   X0$A <- 0
+#   SL.outcome <- SuperLearner(Y=ObsData$Y, X=X, SL.library=SL.library, family="binomial")
+#   expY.givenAW <- predict(SL.outcome, newdata=ObsData)$pred
+#   expY.given1W <- predict(SL.outcome, newdata=X1)$pred
+#   expY.given0W <- predict(SL.outcome, newdata=X0)$pred
+#   # Simple substitution estimator risk difference
+#   PsiHat.SS.rd <- mean(expY.given1W - expY.given0W)
+#   # Simple substitution estimator odds ratio
+#   PsiHat.SS.or <- (mean(expY.given1W)/(1-mean(expY.given1W))) /
+#     (mean(expY.given0W)/(1-(mean(expY.given0W))))
+#   ## IPTW
+#   SL.exposure<- SuperLearner(Y=ObsData$A, X=subset(ObsData, select= -c(A, Y)), 
+#                              SL.library=SL.library, family="binomial")
+#   probA1.givenW <- SL.exposure$SL.predict
+#   probA0.givenW <- 1- probA1.givenW
+#   # Clever covariate for risk difference
+#   H.AW <- as.numeric(ObsData$A==1)/probA1.givenW - as.numeric(ObsData$A==0)/probA0.givenW
+#   H.1W <- 1/probA1.givenW
+#   H.0W <- -1/probA0.givenW
+#   # Clever covariate for odds ratio
+#   H.AW.or <- ((as.numeric(ObsData$A==1)/probA1.givenW)/(1-(as.numeric(ObsData$A==1)/probA1.givenW))) / 
+#     ((as.numeric(ObsData$A==0)/probA0.givenW)/(1-(as.numeric(ObsData$A==0)/probA0.givenW)))
+#   # IPTW estimator risk difference
+#   PsiHat.IPTW.rd <- mean(H.AW*ObsData$Y)
+#   # IPTW estimator odds ratio
+#   PsiHat.IPTW.or <- mean(H.AW.or*ObsData$Y)
+#   ## Targeting and TMLE
+#   logitUpdate <- glm(ObsData$Y ~ -1 +offset(qlogis(expY.givenAW)) + H.AW, family='binomial')
+#   epsilon <- logitUpdate$coef
+#   expY.givenAW.star <- plogis(qlogis(expY.givenAW)+ epsilon*H.AW)
+#   expY.given1W.star <- plogis(qlogis(expY.given1W)+ epsilon*H.1W)
+#   expY.given0W.star <- plogis(qlogis(expY.given0W)+ epsilon*H.0W)
+#   # TMLE risk difference
+#   PsiHat.TMLE.rd <- mean(expY.given1W.star - expY.given0W.star)
+#   # TMLE odds ratio
+#   PsiHat.TMLE.or <- (mean(expY.given1W.star)/(mean(1-expY.given1W.star))) / 
+#     (mean(expY.given0W.star)/(mean(1-expY.given0W.star)))
+#   # List the point estimates
+#   estimates.rd <- data.frame(cbind(PsiHat.SS.rd=PsiHat.SS.rd, PsiHat.IPTW.rd, PsiHat.TMLE.rd))
+#   estimates.or <- data.frame(cbind(PsiHat.SS.or=PsiHat.SS.or, PsiHat.IPTW.or, PsiHat.TMLE.or))
+#   predictions <- data.frame(cbind(expY.givenAW.star, expY.given1W.star, expY.given0W.star))
+#   colnames(predictions)<- c('givenAW', 'given1W', 'given0W')
+#   list(estimates=estimates.rd, predictions=predictions, H.AW=H.AW)
+#   list(estimates=estimates.or, predictions=predictions, H.AW=H.AW.or)
+# }
+# 
+# out <- run.tmle(ObsData=ObsData, SL.library=SL.library)
+# est.rd <- out$estimates.rd
+# est.rd*100
+# est.or <- out$estimates.or
+# est.or
+
+
+############
 ObsData <- ObsData %>% mutate(A = targetex) %>% mutate(Y = targetslp) %>% 
   select(-targetex, -targetslp)
 

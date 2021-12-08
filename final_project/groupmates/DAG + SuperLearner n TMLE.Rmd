@@ -1,0 +1,392 @@
+---
+title: "BIOSTAT 683 - final project"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+
+
+```{r, message=F, warning=FALSE}
+library(ggdag)
+library(tidyverse)
+```
+
+
+
+```{r}
+
+
+set.seed(123)
+
+sample_dag <- dagify(
+  W1 ~ U,
+  W2 ~ W1 + U,
+  W3 ~ W1 + W2 + U,
+  A ~ W1 + W2 + W3 + U,
+  Y ~ W1 + W2 + W3 + A + U,
+  exposure = "A",
+  outcome = "Y"
+)
+
+ggdag_status(sample_dag)+
+  theme_dag() 
+
+```
+
+
+```{r}
+# getting the data
+slpexcov1517 <- read.csv("slpexcov1517.csv")
+summary(slpexcov1517)
+
+
+```
+
+
+```{r}
+# Binary table
+binslpexcov1517 <- dplyr::select(slpexcov1517, SEQN, targetex, targetslp)
+summary(binslpexcov1517)
+
+#Contingency tables
+binslpexcov1517 %>% select(-SEQN) %>% table()
+#          targetslp
+# targetex    0    1
+#        0  544 1683
+#        1  286 1279
+
+slpexcov1517 %>% 
+  dplyr::select(targetex, targetslp) %>% 
+  group_by(targetex, targetslp) %>% 
+  summarise(n = n())
+
+# Fit a logistic model to the data without confounders and look at results
+glm.slpex = glm(targetslp ~ targetex, family = binomial(link = "logit"), data = slpexcov1517)
+summary(glm.slpex)
+
+exp(cbind(OR = coef(glm.slpex), confint(glm.slpex)))
+
+# Fit data with covariates and see how effects change
+glm.slpexcov = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+                     factor(household) + factor(income) + factor(snoring) + factor(apnea) + bmi + 
+                     waist + factor(smoke) + factor(alcohol) + factor(depressed),
+                   family = binomial(link = "logit"), data = slpexcov1517)
+summary(glm.slpexcov)
+
+exp(cbind(OR = coef(glm.slpexcov), confint(glm.slpexcov)))
+
+
+
+
+# model (variables) selection
+#step(glm.slpexcov, scope = ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+                     #factor(household) + factor(income) + factor(snoring) + #factor(apnea) + bmi + 
+                     #waist + factor(smoke) + factor(alcohol) + #factor(depressed), direction = "backward")
+# missing values are a problem to model selection
+# data would need to be clean before
+
+
+
+# Removed covariates that have many NAs or seem unimportant
+glm.slpexcov2 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+                      bmi + waist + factor(depressed),
+                   family = binomial(link = "logit"), data = slpexcov1517)
+summary(glm.slpexcov2)
+exp(cbind(OR = coef(glm.slpexcov2), confint(glm.slpexcov2)))
+
+
+```
+
+
+```{r}
+head(slpexcov1517)
+
+
+ObsData <- subset(slpexcov1517, 
+                  select = c(targetslp, 
+                  targetex, age,
+                  raceeth, educ,
+                  marital, bmi,
+                  waist,depressed))
+
+summary(ObsData)
+# 301 NA for DEPRESSED (7.94%), we should do multiple imputation
+# 159 NA for WAIST (4.19%)
+
+ObsData <- na.exclude(ObsData)
+
+ObsData <- ObsData %>% mutate(A = targetex, 
+                              Y = targetslp) %>%
+  select(-targetex, -targetslp)
+
+head(ObsData)
+
+
+
+# Removed covariates that have many NAs or seem unimportant
+glm.slpexcov2 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+                      bmi + waist + factor(depressed),
+                   family = binomial(link = "logit"), data = slpexcov1517)
+summary(glm.slpexcov2)
+exp(cbind(OR = coef(glm.slpexcov2), confint(glm.slpexcov2)))
+
+
+
+```
+
+
+
+```{r, message=F, warning=F}
+#set.seed(252)
+
+
+library(SuperLearner)
+SL.library <- c("SL.mean", "SL.glm", "SL.step.interaction")
+
+# using SuperLearner
+
+X <- subset(ObsData, select = -Y)
+
+X1 <- X0 <- X
+
+X1$A <- 1
+X0$A <- 0
+
+SL.outcome <- SuperLearner(Y = ObsData$Y,
+                           X = X,
+                           SL.library = SL.library,
+                           family = "binomial")
+SL.outcome
+
+# expected outcome, given exposure and covariates
+expY.givenAW <- predict(SL.outcome, newdata = X)$pred
+expY.given1W <- predict(SL.outcome, newdata = X1)$pred
+expY.given0W <- predict(SL.outcome, newdata = X0)$pred
+
+# observing the data
+head(data.frame(A = ObsData$A,
+                expY.givenAW,
+                expY.given1W,
+                expY.given0W))
+
+tail(data.frame(A = ObsData$A,
+                expY.givenAW,
+                expY.given1W,
+                expY.given0W))
+
+# simple substitution
+PsiHat.SS <- mean(expY.given1W - expY.given0W)
+PsiHat.SS
+
+
+
+
+
+```
+
+
+```{r}
+# -----
+# Estimating propensity score with SuperLearner
+# --------
+
+X <- subset(ObsData, select = - c(A, Y))
+#X
+  
+SL.exposure <- SuperLearner(Y = ObsData$Y,
+                           X = X,
+                           SL.library = SL.library,
+                           family = "binomial")
+SL.exposure
+
+# generating probability of exposure given baseline covariates
+probA1.givenW <- SL.exposure$SL.predict
+
+# above is equivalent to :
+check <- predict(SL.exposure, newdata = X)$pred
+head(check)
+
+sum(probA1.givenW != check)
+# this should be zero
+
+probA0.givenW <- 1 - probA1.givenW
+
+# summary table
+summary(data.frame(probA1.givenW, probA0.givenW))
+
+
+
+```
+
+
+```{r}
+# creating the clever covariate H(A,W) for each observation
+
+H.AW <- as.numeric(ObsData$A==1)/probA1.givenW - as.numeric(ObsData$A==0)/probA0.givenW
+
+H.1W <- 1/probA1.givenW
+H.0W <- -1/probA0.givenW
+
+head(data.frame(A = ObsData$A,
+                H.AW,
+                H.1W,
+                H.0W))
+
+# IPTW estimator of G-computation formula
+PsiHat.IPTW <- mean(H.AW * ObsData$Y)
+PsiHat.IPTW
+
+
+
+```
+
+
+
+```{r, warning=F, message=F}
+# update estimator of E_0(Y|A,W)
+logitUpdate <- glm(ObsData$Y ~ -1 + offset(qlogis(expY.givenAW)) + H.AW,
+                                           family = "binomial")
+
+epsilon <- logitUpdate$coef
+epsilon
+
+# targeted estimates
+expY.givenAW.star <- plogis(qlogis(expY.givenAW) + epsilon * H.AW)
+expY.given1W.star <- plogis(qlogis(expY.given1W) + epsilon * H.1W)
+expY.given0W.star <- plogis(qlogis(expY.given0W) + epsilon * H.0W)
+
+
+# tlooking at epsilon with another regression update
+coef(glm(ObsData$Y ~ -1 + offset(qlogis(expY.givenAW.star)) + H.AW,
+                                           family = "binomial"))
+
+# interpretation?? 
+## clever covariate not changing same as lab??
+
+PsiHat.TMLE <- mean(expY.given1W.star - expY.given0W.star)
+PsiHat.TMLE # 0.05065004
+
+# comparing the estimates
+c(PsiHat.SS, PsiHat.IPTW, PsiHat.TMLE)
+
+
+```
+
+
+
+```{r, message=F, warning=F}
+# ltme package
+set.seed(123)
+
+library(ltmle)
+
+ltmle.SL <- ltmle(data = ObsData,
+                  Anodes = "A",
+                  Ynodes = "Y",
+                  abar = list(1,0),
+                  SL.library = SL.library,
+                  estimate.time = F)
+summary(ltmle.SL)
+
+# ltmle package provides estimates and inference for (under identifiability assumptions):
+
+# 1. expected outcome under the exposure (treatment estimate) = 0.80595 
+# 2. expected outcome under no exposure (control estimate) = 0.75417 
+# 3. additive treatment effect = 0.051785  (THIS!)
+
+
+```
+
+
+
+```{r, warning = F, message = F}
+# call ltmle with main terms parametric regression for both E(U|A,M) & P(A=1|W)
+
+ltmle.parametric <- ltmle(data = ObsData,
+                          Anodes = "A",
+                          Ynodes = "Y",
+                          abar = list(1,0),
+                          Qform = c(Y = "Q.kplus1 ~ A + age +
+                          factor(raceeth) + factor(educ) + factor(marital) +
+                          bmi + waist + factor(depressed)"),
+                          gform = "A ~ age + factor(raceeth) + 
+                          factor(educ) + factor(marital) +
+                          bmi + waist + factor(depressed)",
+                          estimate.time = F)
+summary(ltmle.parametric)
+
+# call ltmle with unadjusted 
+
+ObsData <- data.frame(U=1, ObsData)
+
+ltmle.unadj <- ltmle(data = ObsData,
+                     Anodes = "A",
+                     Ynodes = "Y",
+                     abar = list(1,0),
+                     Qform = c(Y = "Q.kplus1 ~ A"),
+                     gform = "A ~ U",
+                     estimate.time = F)
+summary(ltmle.unadj)
+
+# --
+# explore double robustness
+# --
+
+ltmle.DR <- ltmle(data = ObsData,
+                  Anodes = "A",
+                  Ynodes = "Y",
+                  abar = list(1,0),
+                  SL.library = SL.library,
+                  gform = "A ~ U",
+                  estimate.time = F)
+summary(ltmle.DR)
+
+# Additive treatment effect =  0.055591
+
+# P.S: an estimator is consistent if the point estimates converge (in probability) 
+# to the estimand as sample size n tend to infinity
+
+# Our sample size is 3406 (way more than the 1000 of lab5). 
+# Not sure if there's a need to increase sample sizes. 
+
+```
+
+
+```{r}
+# Alternative TMLE implementations
+
+# calculate 2-dimensional clever covariate
+
+H.1W <- as.numeric(ObsData$A==1)/probA1.givenW
+H.0W <- as.numeric(ObsData$A==0)/probA0.givenW
+
+# target
+
+logitUpdate<- glm(ObsData$Y~ -1 + offset(qlogis(expY.givenAW)) +
++ H.0W + H.1W, family="binomial")
+
+eps<-logitUpdate$coef
+eps
+
+
+# obtain the targeted estimates
+expY.givenAW.star <- plogis(qlogis(expY.givenAW) + eps['H.0W']*H.0W + eps['H.1W']*H.1W)
+
+expY.given1W.star <- plogis( qlogis(expY.given1W) + eps['H.1W']/probA1.givenW )
+
+expY.given0W.star <- plogis(qlogis(expY.given0W) + eps['H.0W']/probA0.givenW )
+
+TMLE2 <- data.frame(cbind(
+psi1 = mean(expY.given1W.star),
+psi0 = mean(expY.given0W.star),
+diff = mean(expY.given1W.star) - mean(expY.given0W.star),
+ratio = mean(expY.given1W.star) /mean(expY.given0W.star)
+))
+
+TMLE2
+
+# diff = 0.05339405 (yeah!!!) 
+
+```
+
