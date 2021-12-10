@@ -7,8 +7,9 @@ library(ltmle)
 setwd("final_project")
 getwd()
 
-## Reading in dataset
+# Set seed
 set.seed(252)
+## Reading in dataset
 ObsDataPrimary <- read.csv("slpexcov1517.csv") # 3,792 obs of 20 variables
 # Use only final variable set for analysis
 ObsData <- ObsDataPrimary %>% select(-SEQN, -exminwk, -slphrs, -household, -income, -snoring,
@@ -20,12 +21,18 @@ colSums(is.na(ObsData))
 # Drop missing values
 ObsData <- na.exclude(ObsData) # ObsData now has 3,406 obs of 9 variables
 colSums(is.na(ObsData)) # There are no missing values
+# Rename exposure "A" and outcome "Y"
 summary(ObsData)
+ObsData <- ObsData %>% 
+  rename(A = targetex) %>% 
+  rename(Y = targetslp) %>% 
+  relocate(Y)
+names(ObsData)
 
 #####
 ## IPTW
 # Estimate the exposure mechanism P(A|W)
-prob.AW.reg = glm(targetex ~ age + factor(raceeth) + factor(educ) + factor(marital) + 
+prob.AW.reg = glm(A ~ age + factor(raceeth) + factor(educ) + factor(marital) + 
                     bmi + waist + factor(depressed),
                   family = binomial(link = "logit"), data = ObsData)
 summary(prob.AW.reg)
@@ -37,8 +44,8 @@ prob.0W <- 1 - prob.1W
 summary(prob.1W)
 summary(prob.0W)
 # Create weights for IPTW
-wt1 <- as.numeric(ObsData$targetex==1)/prob.1W
-wt0 <- as.numeric(ObsData$targetex==0)/prob.0W
+wt1 <- as.numeric(ObsData$A==1)/prob.1W
+wt0 <- as.numeric(ObsData$A==0)/prob.0W
 summary(wt1)
 # The largest weight is 19.795, which does not suggest a near violation of positivity
 hist(wt1)
@@ -46,19 +53,21 @@ hist(wt1)
 hist(wt1[wt1 > 5])
 hist(wt1[wt1>8])
 table(wt1[wt1>8])
-# There is only one weight ~ 19.8, two between 10-14,  nine between 8-10
+# Biggest weight ~ 19.8, two between 10-14,  nine between 8-10
 summary(wt0)
 # The largest weight is 5.409, which does not suggest a positivity violation
 hist(wt0, breaks = 0:6)
 # Almost all weights between 1 and 2
+hist(wt0[wt0 > 5])
+# There are five weights between 5-5.5
 
 # Point estimate for risk difference
-iptw.rd <- mean(wt1*ObsData$targetslp) - mean(wt0*ObsData$targetslp)
+iptw.rd <- mean(wt1*ObsData$Y) - mean(wt0*ObsData$Y)
 iptw.rd
 # Point estimate risk difference = 0.05629606
 # Point estimate for odds ratio
-iptw.or <- (mean(wt1*ObsData$targetslp)/(1-mean(wt1*ObsData$targetslp))) /
-  (mean(wt0*ObsData$targetslp)/(1-(mean(wt0*ObsData$targetslp))))
+iptw.or <- (mean(wt1*ObsData$Y)/(1-mean(wt1*ObsData$Y))) /
+  (mean(wt0*ObsData$Y)/(1-(mean(wt0*ObsData$Y))))
 iptw.or
 # Point estimate odds ratio = 1.390607
 
@@ -71,42 +80,47 @@ wt0.trunc <- wt0
 wt0.trunc[wt0.trunc > 8] <- 8
 # IPTW estimand with truncated weights
 # Risk difference
-iptw.tr.rd <- mean(wt1.trunc*ObsData$targetslp) - mean(wt0.trunc*ObsData$targetslp)
+iptw.tr.rd <- mean(wt1.trunc*ObsData$Y) - mean(wt0.trunc*ObsData$Y)
 iptw.tr.rd
 # Point estimate for truncated risk difference = 0.05075302
 # Odds ratio
-iptw.tr.or <- (mean(wt1.trunc*ObsData$targetslp)/(1-mean(wt1.trunc*ObsData$targetslp))) /
-  (mean(wt0.trunc*ObsData$targetslp)/(1-(mean(wt0.trunc*ObsData$targetslp))))
+iptw.tr.or <- (mean(wt1.trunc*ObsData$Y)/(1-mean(wt1.trunc*ObsData$Y))) /
+  (mean(wt0.trunc*ObsData$Y)/(1-(mean(wt0.trunc*ObsData$Y))))
 iptw.tr.or
 # Point estimate for truncated odds ratio = 1.342248
 
 # Stabilized IPTW estimator - Modified Horvitz-Thompson estimator
 # Risk difference
-iptw.st.rd <- sum(wt1*ObsData$targetslp) / sum(wt1) - sum(wt0*ObsData$targetslp) / sum(wt0)
+iptw.st.rd <- sum(wt1*ObsData$Y) / sum(wt1) - sum(wt0*ObsData$Y) / sum(wt0)
 iptw.st.rd
 # RD = 0.04822426
 # Odds ratio
-iptw.st.or <- ((sum(wt1.trunc*ObsData$targetslp)/sum(wt1))/((sum(1-wt1.trunc*ObsData$targetslp))/sum(wt1))) /
-  ((sum(wt0.trunc*ObsData$targetslp)/sum(wt0))/((sum(1-wt0.trunc*ObsData$targetslp))/sum(wt0)))
+iptw.st.or <- ((sum(wt1.trunc*ObsData$Y)/sum(wt1))/
+                 ((sum(1-wt1.trunc*ObsData$Y))/sum(wt1))) /
+  ((sum(wt0.trunc*ObsData$Y)/sum(wt0))/
+     ((sum(1-wt0.trunc*ObsData$Y))/sum(wt0)))
 iptw.st.or
 # OR = 1.342248
 
 # Unadjusted Estimator
-unadj.rd <- mean(ObsData[ObsData$targetex==1, 'targetslp']) - mean(ObsData[ObsData$targetex==0, 'targetslp'])
+unadj.rd <- mean(ObsData[ObsData$A==1, 'Y']) - 
+  mean(ObsData[ObsData$A==0, 'Y'])
 unadj.rd
 # RD = 0.06442889
-unadj.or <- (mean(ObsData[ObsData$targetex==1, 'targetslp'])/(1-mean(ObsData[ObsData$targetex==1, 'targetslp']))) /
-  (mean(ObsData[ObsData$targetex==0, 'targetslp'])/(1-(mean(ObsData[ObsData$targetex==0, 'targetslp']))))
+unadj.or <- (mean(ObsData[ObsData$A==1, 'Y'])/
+               (1-mean(ObsData[ObsData$A==1, 'Y']))) /
+  (mean(ObsData[ObsData$A==0, 'Y'])/
+     (1-(mean(ObsData[ObsData$A==0, 'Y']))))
 unadj.or
 # OR = 1.465781
 
 # G Computation
-outcome.reg = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+outcome.reg = glm(Y ~ A + age + factor(raceeth) + factor(educ) + factor(marital) + 
                     bmi + waist + factor(depressed),
                   family = binomial(link = "logit"), data = ObsData)
 exp <- unexp <- ObsData
-exp$targetex <- 1
-unexp$targetex <- 0
+exp$A <- 1
+unexp$A <- 0
 # Risk difference
 SS.rd <- mean(predict(outcome.reg, newdata=exp, type='response')) - 
   mean(predict(outcome.reg, newdata=unexp, type='response'))

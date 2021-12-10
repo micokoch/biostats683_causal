@@ -13,6 +13,7 @@ IPTW estimand:
 $\Psi(\mathbb{P}_0)$ = $\mathbb{E}_0$$[\frac{\mathbb{I}(A=1)}{\mathbb{P_0}(A=1|W)}Y]$ - $\mathbb{E}_0$$[\frac{\mathbb{I}(A=0)}{\mathbb{P_0}(A=0|W)}Y]$
 
 ```{r}
+set.seed(252)
 ObsData <- read.csv("slpexcov1517.csv")
 
 ObsData <- ObsData %>% dplyr::select(-SEQN, -exminwk, -slphrs, -household, -income, -snoring,
@@ -34,7 +35,7 @@ summary(ObsData)
 
 First fit the logistic regression model:
 ```{r}
-fit<-glm(A~factor(raceeth)+factor(educ)+factor(marital)+bmi+waist+factor(depressed),
+fit<-glm(A~age+factor(raceeth)+factor(educ)+factor(marital)+bmi+waist+factor(depressed),
     family="binomial",data=ObsData)
 ```
 

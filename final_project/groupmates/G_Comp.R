@@ -1,5 +1,5 @@
 library(dplyr)
-
+set.seed(252)
 ObsData <- read.csv("slpexcov1517.csv")
 
 ObsData <- ObsData %>% select(-SEQN, -exminwk, -slphrs, -household, -income, -snoring,
