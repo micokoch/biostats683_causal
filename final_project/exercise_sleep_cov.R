@@ -187,7 +187,7 @@ exp(cbind(OR = coef(glm.slpexcov), confint(glm.slpexcov)))
 # factor(depressed)1 0.5843512 0.4132842  0.8343249
 
 # ATE (risk difference - marginal effect)
-# Old method didn't work (predicted probabilities yielded many NAs)
+# Old method didn't work (predicted probabilities yielded many NAs) - didn't drop
 
 # # Probability for each individual based on the model fit under targetex = 1
 # p1.sat <- mean(predict(glm.slpexcov, prob.1, type = "response"), na.rm = T)
