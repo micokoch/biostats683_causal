@@ -20,5 +20,62 @@ mean(eximprev$PAQ670) # mean 1.430643 -> imputation would be to 1 day
 # PAD675 - 23 imputations made to 26 minutes (mean = 26)
 mean(eximprev$PAD675) # mean 30.86181 -> imputation would be to 31 minutes -> correct
 
+# Logistic regression tests
+# Binary model - rd: 0.06152721, or: 1.44550399
+a <- 1.12938
+b.1 <- 0.36846
+or <- exp(b.1)
+or
+# 1.445507
+expab.1 <- exp(a+b.1)
+expab.1
+# 4.472019
+p.1 = exp(a+b.1)/(1+exp(a+b.1))
+p.1
+# 0.8172521
+pab.1 = expab.1/(1+expab.1)
+pab.1
+# 0.8172521
+expab.0 <- exp(a)
+expab.0
+# 3.093738
+p.0 = exp(a)/(1+exp(a))
+p.0
+# 0.7557245
+pab.0 = expab.0/(1+expab.0)
+pab.0
+# 0.7557245
+rd = pab.1-pab.0
+rd
+# 0.06152764
+
+# Saturated model - rd: 0.055300, or: 1.451755
+a <- 1.688443
+b.1 <- 0.372773
+or <- exp(b.1)
+or
+# 1.451755
+expab.1 <- exp(a+b.1)
+expab.1
+# 7.855516
+p.1 = exp(a+b.1)/(1+exp(a+b.1))
+p.1
+# 0.887076
+pab.1 = expab.1/(1+expab.1)
+pab.1
+# 0.887076
+expab.0 <- exp(a)
+expab.0
+# 5.411049
+p.0 = exp(a)/(1+exp(a))
+p.0
+# 0.8440193
+pab.0 = expab.0/(1+expab.0)
+pab.0
+# 0.8440193
+rd = pab.1-pab.0
+rd
+# 0.04305675
+
 
 
