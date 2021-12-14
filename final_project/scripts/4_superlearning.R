@@ -205,7 +205,7 @@ run.tmle <- function(ObsData, SL.library){
   ## Targeting and TMLE
   # Update the initial estimator of E_0(Y|A,W)
   # run logistic regression of Y on H.AW using the logit of the esimates as offset
-  logitUpdate <- glm(ObsData$Y ~ -1 +offset(qlogis(expY.givenAW)) + H.AW, family='binomial')
+  logitUpdate <- glm(ObsData$Y ~ -1 + offset(qlogis(expY.givenAW)) + H.AW, family='binomial')
   epsilon <- logitUpdate$coef
   # obtain the targeted estimates
   expY.givenAW.star <- plogis(qlogis(expY.givenAW) + epsilon*H.AW)
@@ -235,11 +235,100 @@ est_run_tmle_gt <- est_run_tmle %>% gt()
 save(est_run_tmle_gt, file = "est_run_tmle_gt.RData")
 pander(est_run_tmle)
 
-## Estimate the variance of tmle
+## Estimate the variance of TMLE
+# clever covariate
+H.AW <- out_run_tmle$H.AW
+# targeted predictions
+expY.AW.star <- out_run_tmle$predictions[,'givenAW']
+expY.1W.star <- out_run_tmle$predictions[,'given1W']
+expY.0W.star <- out_run_tmle$predictions[,'given0W']
+# point estimate
+PsiHat.TMLE <- est_run_tmle$PsiHat.TMLE.rd
+# plug-in
+IC <- H.AW*(ObsData$Y - expY.AW.star) + expY.1W.star - expY.0W.star - PsiHat.TMLE
+summary(IC)
+# estimate sigma^2 with the variance of the IC divided by n
+n <- nrow(ObsData)
+varHat.IC <- var(IC)/n
+varHat.IC
+# standard error estimate
+se <- sqrt(varHat.IC)
+se
+# obtain 95% two-sided confidence intervals:
+alpha <- 0.05
+c(PsiHat.TMLE + qnorm(alpha/2, lower.tail=T)*se,
+  PsiHat.TMLE + qnorm(alpha/2, lower.tail=F)*se)
+# calculate the pvalue
+pvalue <- 2* pnorm(abs(PsiHat.TMLE/se), lower.tail=F )
+pvalue
 
+## NP-Boot for B=100 bootstrapped samples
+# number of bootstrap samples
+B = 100
+# data frame for estimates based on the boot strap sample
+estimates <- data.frame(matrix(NA, nrow=B, ncol=6))
+# for loop from b=1 to total number of bootstrap samples
+for(b in 1:B){
+  # sample the indices 1 to n with replacement
+  bootIndices <- sample(1:n, replace=T)
+  bootData <- ObsData[bootIndices,]
+  # calling the above function
+  estimates[b,] <- run.tmle(ObsData=bootData, SL.library=SL.library)$estimates
+  # keep track of the iteractions completed
+  print(b)
+}
+colnames(estimates)<-c("SimpSubs", "IPTW", "TMLE")
+save(estimates, file='bootstrap_run_tmle.Rdata')
+
+# Explore the bootstrapped point estimates
+summary(estimates)
+#saving the histograms as a pdf
+pdf(file="bootstrap_run_tmle.pdf")
+par(mfrow=c(3,1))
+hist(estimates[,1], main="Histogram of point estimates from the Simple Substitution estimator 
+     over 100 bootstrapped samples", xlab="Point Estimates")
+hist(estimates[,2], main="Histogram of point estimates from IPTW estimator 
+     over B bootstrapped samples", xlab="Point Estimates")
+hist(estimates[,3], main="Histogram of point estimates from TMLE 
+     over B bootstrapped samples", xlab="Point Estimates")
+dev.off()
+
+## 95% Confidence intervals using a normal distribution & via quantiles
+create.CI <- function(pt, boot, alpha=0.05){
+  Zquant <- qnorm(alpha/2, lower.tail=F)
+  CI.normal <- c(pt - Zquant*sd(boot), pt + Zquant*sd(boot) )
+  CI.quant <- quantile(boot, prob=c(0.025,0.975) )
+  out <- data.frame(rbind(CI.normal, CI.quant))*100
+  colnames(out)<- c('CI.lo', 'CI.hi')
+  out
+}
+# The point estimate 'pt' is from the original dataset
+# Simple Subs
+est_run_tmle$PsiHat.SS.rd
+# [1] 0.04451638
+create.CI(pt=est_run_tmle$PsiHat.SS.rd, boot=estimates[,"SimpSubs"])
+#              CI.lo    CI.hi
+# CI.normal 1.887290 7.015985
+# CI.quant  1.314127 5.769350
+
+# IPTW
+est_run_tmle$PsiHat.IPTW.rd
+# [1] 0.005275451
+create.CI(pt=est_run_tmle$PsiHat.IPTW.rd, boot=estimates[,"IPTW"])
+#              CI.lo    CI.hi
+# CI.normal -2.441416  3.496507
+# CI.quant  -11.560677 -6.281583
+
+# TMLE
+est_run_tmle$PsiHat.TMLE.rd
+# [1] 0.05016527
+create.CI(pt=est_run_tmle$PsiHat.TMLE.rd, boot=estimates[,"TMLE"])
+#              CI.lo    CI.hi
+# CI.normal 2.305681 7.727374
+# CI.quant  2.694661 8.044353
 
 #####
-## Super Learning 2
+## Super Learning 2 - LTMLE
 ObsData <- ObsData %>% 
   relocate(A) %>% 
   relocate(Y, .after = last_col())
@@ -333,5 +422,7 @@ save(ltmle.CV.SL.summary, file = "ltmle.CV.SL.summary.RData")
 # SL.earth_All 0.16991 0.0039615 0.15442 0.18975
 # SL.glmnet_All 0.17036 0.0039254 0.15187 0.18990
 # SL.ranger_All 0.17147 0.0039220 0.15570 0.19166
+
+
 
 

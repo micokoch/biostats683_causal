@@ -40,6 +40,7 @@ exercise2017 <- nhanes('PAQ_J') %>%
 # exer0717 <- bind_rows(exercise2007, exercise2009, exercise2011, exercise2013,
 #                       exercise2015, exercise2017)
 exer1517 <- bind_rows(exercise2015, exercise2017) # initially 15,111 observations
+write_csv(exer1517, "exer1517_complete.csv")
 exer1517 <- exer1517 %>% 
   drop_na('PAQ650', 'PAQ665') # fell to 12,819 obs
 summary(exer1517) # PAQ655 & PAD660 have 9,192 & 9,199 NA each, & PAQ670 & PAD675 have 7,555 & 7,572 NA each
@@ -67,12 +68,12 @@ exer1517 <- exer1517 %>%
   mutate(PAQ655 = ifelse(PAQ655 > 10, NA, PAQ655))
 summary(exer1517) # Now 1 NA, mean = 0.9856
 # Keep track of imputations (to compare how many actually imputed after adding covariates)
-imputed <- c()
+imputed_exer <- c()
 imp <- exer1517 %>% filter(is.na(PAQ655)) %>% select(SEQN)
 for(i in imp){
-  imputed <- append(imputed, i)
+  imputed_exer <- append(imputed_exer, i)
 }
-imputed
+imputed_exer
 # Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
   mutate(PAQ655 = ifelse(is.na(PAQ655), round(mean(PAQ655, na.rm = TRUE)), PAQ655))
@@ -88,9 +89,9 @@ summary(exer1517) # Went from 7 to 11 NAs, mean = 21.78
 # Keep track of imputations (to compare how many actually imputed after adding covariates)
 imp <- exer1517 %>% filter(is.na(PAD660)) %>% select(SEQN)
 for(i in imp){
-  imputed <- append(imputed, i)
+  imputed_exer <- append(imputed_exer, i)
 }
-imputed
+imputed_exer
 # Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
   # mutate(PAD660 = ifelse(is.na(PAD660), round(mean(PAD660, na.rm = TRUE)), PAD660))
@@ -135,9 +136,9 @@ summary(exer1517) # Now 6 NAs, mean = 1.446
 # Keep track of imputations (to compare how many actually imputed after adding covariates)
 imp <- exer1517 %>% filter(is.na(PAQ670)) %>% select(SEQN)
 for(i in imp){
-  imputed <- append(imputed, i)
+  imputed_exer <- append(imputed_exer, i)
 }
-imputed
+imputed_exer
 # Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
   mutate(PAQ670 = ifelse(is.na(PAQ670), round(mean(PAQ670, na.rm = TRUE)), PAQ670))
@@ -153,10 +154,9 @@ summary(exer1517) # Went from 16 to 23 NAs, mean = 26
 # Keep track of imputations (to compare how many actually imputed after adding covariates)
 imp <- exer1517 %>% filter(is.na(PAD675)) %>% select(SEQN)
 for(i in imp){
-  imputed <- append(imputed, i)
+  imputed_exer <- append(imputed_exer, i)
 }
-imputed
-
+imputed_exer
 # Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
   # mutate(PAD660 = ifelse(is.na(PAD660), round(mean(PAD660, na.rm = TRUE)), PAD660))
@@ -166,7 +166,6 @@ exer1517 <- exer1517 %>%
 summary(exer1517)
 table(exer1517$PAD660, useNA = "always") # 11 imputations made to 28 minutes (mean = 28.28)
 hist(exer1517$PAD660)
-
 # Impute NAs to rounded mean
 exer1517 <- exer1517 %>% 
   # mutate(PAD675 = ifelse(is.na(PAD675), round(mean(PAD675, na.rm = TRUE)), PAD675))
@@ -215,11 +214,16 @@ hist(exer1517$targetex, breaks = 2)
 smex <- exer1517 %>% 
   dplyr::select(SEQN, vigexminwk, modexminwk, exminwk, targetex)
 summary(smex) # 12,813 obs of 5 variables
+# Save dataset with exercise variables for analysis
+write_csv(smex, "smex.csv")
+# Save imputed vector as object for later use
+save(imputed_exer, file = "imputed_exer.RData")
 
 ##### SLEEP
 # Exclude years before 2007 because they didn't collect variables we needed
 # Select and rename sleep variables for merging (slightly different names across years)
 # Only use 2015 & 2017 because data collected differently prior to that
+# Later changed target sleep to be 7 hours or more
 
 # 2007
 # sleep2007 <- nhanes('SLQ_E') %>% 
@@ -286,6 +290,7 @@ summary(smex) # 12,813 obs of 5 variables
 # summary(sleep2013)
 # hist(sleep2013$targetslp, breaks = 2)
 ### Note - there seems to be a change in methodology starting in 2015. Fewer people with little sleep.
+
 # 2015
 sleep2015 <- nhanes('SLQ_I') %>% 
   dplyr::select(c('SEQN', 'SLD012'))
@@ -301,17 +306,21 @@ summary(sleep2015) # No real change except now 2 columns - SEQN and slphrs
 # Drop NAs and create targetslp variable
 sleep2015 <- sleep2015 %>% 
   drop_na('slphrs') %>% 
-  mutate(targetslp = ifelse(slphrs > 6, 1, 0))
+  mutate(targetslp = ifelse(slphrs >= 7, 1, 0))
+# Later implemented change in target sleep (from >6 to >=7, verify changes are correct)
+table(sleep2015$slphrs)
+# 393 people are in 6.5 hours category and should have shifted - changes worked!
 summary(sleep2015) # 6,294 obs of 3 variables
-table(sleep2015$targetslp) # 986 are 0 and 5,308 are 1
+table(sleep2015$targetslp) # 1,379 are 0 and 4,915 are 1
 hist(sleep2015$targetslp, breaks = 2)
+
 # 2017
 sleep2017 <- nhanes('SLQ_J') %>% 
   dplyr::select(c('SEQN', 'SLD012'))
 summary(sleep2017)  # 6,161 obs of 2 variables (range: 2-14, 48 NAs)
 sleep2017 <- sleep2017 %>% 
   mutate(slphrs = SLD012)
-table(sleep2017$slphrs)
+table(sleep2017$slphrs) # 378 people in 6.5 hour sleep category
 hist(sleep2017$slphrs)
 sleep2017 <- sleep2017 %>% 
   mutate(slphrs = ifelse(slphrs > 15, NA, slphrs)) %>% 
@@ -320,18 +329,24 @@ summary(sleep2017) # No real change except now 2 columns - SEQN and slphrs
 # Drop NAs and create targetslp variable
 sleep2017 <- sleep2017 %>% 
   drop_na('slphrs') %>% 
-  mutate(targetslp = ifelse(slphrs > 6, 1, 0))
+  mutate(targetslp = ifelse(slphrs >= 7, 1, 0))
+# Later implemented change in target sleep (from >6 to >=7, verify changes are correct)
+table(sleep2017$slphrs)
+# 378 people are in 6.5 hours category and should have shifted - changes worked!
 summary(sleep2017) # 6,113 obs of 3 variables
-table(sleep2017$targetslp) # 1,118 are 0 and 4,995 are 1
+table(sleep2017$targetslp) # 1,496 are 0 and 4,617 are 1
 hist(sleep2017$targetslp, breaks = 2)
+
 # sleep1720 <- nhanes('P_SLQ')
 # Combine all sleep tables
 # sleep0717 <- bind_rows(sleep2007, sleep2009, sleep2011, sleep2013, sleep2015, sleep2017)
 sleep1517 <- bind_rows(sleep2015, sleep2017) # 12,407 obs of 3 variables
 summary(sleep1517)
-table(sleep1517$targetslp) # 2,104 are 0 and 10,303 are 1
+table(sleep1517$targetslp) # 2,875 are 0 and 9,532 are 1
 hist(sleep1517$targetslp, breaks = 2)
 hist(sleep1517$slphrs, breaks = 10)
+# Save dataset with sleep variables for analysis
+write_csv(sleep1517, "smslp.csv")
 
 ##### Final Tables
 # Merge sleep and exercise tables
@@ -346,19 +361,19 @@ summary(binslpex)
 binslpex %>% select(-SEQN) %>% table()
 #          targetslp
 # targetex    0    1
-#        0 1416 6403
-#        1  649 3630
+#        0 1859 5960
+#        1  959 3320
 
 binslpex %>% select(-SEQN) %>% table %>% prop.table(margin = 1)
 #           targetslp
 # targetex         0         1
-#    0     0.1810973 0.8189027
-#    1     0.1516710 0.8483290
+#    0     0.2377542 0.7622458
+#    1     0.2241178 0.7758822
 binslpex %>% select(-SEQN) %>% table %>% prop.table(margin = 2)
 #           targetslp
 # targetex         0         1
-#    0     0.6857143 0.6381940
-#    1     0.3142857 0.3618060
+#    0     0.6596877 0.6422414
+#    1     0.3403123 0.3577586
 
 binslpex %>% 
   dplyr::select(-SEQN) %>% 
@@ -368,10 +383,10 @@ binslpex %>%
 # # Groups:   targetex [2]
 #   targetex targetslp     n
 #       <dbl>     <dbl> <int>
-# 1        0         0  1416
-# 2        0         1  6403
-# 3        1         0   649
-# 4        1         1  3630
+# 1        0         0  1859
+# 2        0         1  5960
+# 3        1         0   959
+# 4        1         1  3320
 
 ####### ANALYSIS
 # library(gtsummary)

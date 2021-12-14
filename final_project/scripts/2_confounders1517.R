@@ -10,7 +10,7 @@ set.seed(252)
 ##### Confounders
 
 # Select variables for confounders
-# Only use 2015 and 2017 because sleep data collected differently before, and issues with demographic variables
+# Only use 2015 & 2017 - sleep data collected differently before and issues with demographic variables
 
 ### Deomgraphic confounders
 # # 2007
@@ -81,7 +81,8 @@ hist(demogconf1517$age)
 
 # RIDRETH1
 hist(demogconf1517$RIDRETH1, breaks = 0:5)
-demogconf1517 %>% count(RIDRETH1) # 655 Mex/Am (1), 448 Hisp(2), 1,208 White (3), 895 Black (4), 803 other (5)
+demogconf1517 %>% count(RIDRETH1)
+# 655 Mex/Am (1), 448 Hisp(2), 1,208 White (3), 895 Black (4), 803 other (5)
 # There are participants in each category
 # Check that there are no missing values
 which(is.na(demogconf1517$RIDRETH1))
@@ -128,12 +129,14 @@ demogconf1517 <- demogconf1517 %>%
 # Check that after factoring, codes are the same
 demogconf1517 %>% count(educ)
 hist(demogconf1517$educ, breaks = 0:5)
-## There are few-ish people with education less than high school -> combine anyone with less than high school (1 & 2)
+# There are few-ish people with education less than high school -> 
+# Combine anyone with less than high school (1 & 2)
 demogconf1517 <- demogconf1517 %>% 
   mutate(educ = ifelse(educ == 1, 2, educ)) %>% 
   mutate(educ = (educ - 1))
 # Check numbers
-demogconf1517 %>% count(educ) # 883 less than HS, 981 HS grad, 1,175 some college, 968 college +, 2 NA
+demogconf1517 %>% count(educ)
+# 883 less than HS, 981 HS grad, 1,175 some college, 968 college +, 2 NA
 hist(demogconf1517$educ, breaks = 0:4)
 # Now demogconf1517 has 4,009 obs of 18 variables
 
@@ -145,7 +148,8 @@ demogconf1517 <- demogconf1517 %>%
 # Check that after factoring, codes are the same
 demogconf1517 %>% count(marital)
 hist(demogconf1517$marital, breaks = 0:6)
-# There are few-ish unmarried people -> combine married & living with partner (1&6), and living alone (2-5)
+# There are few-ish unmarried people ->
+# Combine married & living with partner (1&6), and living alone (2-5)
 # Put in increasing order, so that living alone is reference, and marriage is comparison
 demogconf1517 <- demogconf1517 %>% 
   mutate(marital = ifelse(marital == 6, 1, marital)) %>% 
@@ -153,7 +157,8 @@ demogconf1517 <- demogconf1517 %>%
   mutate(marital = ifelse(marital == 2, marital - 2, marital)) %>% 
   mutate(marital = marital + 1)
 # Check numbers
-demogconf1517 %>% count(marital) # 1,465 living without partner, 2,542 living with partner, 2 NA
+demogconf1517 %>% count(marital)
+# 1,465 living without partner, 2,542 living with partner, 2 NA
 hist(demogconf1517$marital, breaks = 0:2)
 # Now demogconf1517 has 4,009 obs of 19 variables
 
@@ -199,13 +204,14 @@ hist(demogconf1517$income, breaks = 0:15)
 demogconf1517 <- demogconf1517 %>% 
   mutate(income = ifelse(income < 5, 1, ifelse(income < 13, 2, ifelse(income == 13, 1, 3))))
 # Check numbers
-demogconf1517 %>% count(income) # 592 under $20k (1), 1,874 are $20-74.9k (2), 1,182 over $75k (3), 361 NA
+demogconf1517 %>% count(income)
+# 592 under $20k (1), 1,874 are $20-74.9k (2), 1,182 over $75k (3), 361 NA
 hist(demogconf1517$income, breaks = 0:3)
 # Now demogconf1517 has 4,009 obs of 20 variables
 
 ## Create table with demographic covariates
-demogcov1517 <- dplyr::select(demogconf1517, SEQN, gender, males, age, raceeth, usborn, usyears, educ,
-                         marital, household, income)
+demogcov1517 <- dplyr::select(demogconf1517, SEQN, gender, males, age, raceeth, usborn, usyears, 
+                         educ, marital, household, income)
 summary(demogcov1517) # 4,009 obs of 11 variables
 # NAs: 2,690 in usyears, 2 in educ, 2 in marital, 361 in income
 
@@ -351,17 +357,19 @@ table(alcohol2015$ALQ130, useNA = "always") # 2,356 in NA, 4 in 999, 1,164 in 1,
 alcohol2015 <- alcohol2015 %>% 
   mutate(alcohol = 
            case_when(
-             ALQ101 == 2 ~ as.integer(0), # If didn't have at least 12 alcohol drinks/1 yr - set to zero
-             ALQ110 == 2 ~ as.integer(0), # If didn't have at least 12 alcohol drinks/lifetime? - set to zero
+             ALQ101 == 2 ~ as.integer(0), # If didn't have ≥12 alcohol drinks/1 yr - set to zero
+             ALQ110 == 2 ~ as.integer(0), # If didn't have ≥12 alcohol drinks/lifetime? - set to zero
              TRUE ~ as.integer(ALQ130) # For rest keep ALQ130
            )) %>% 
-  mutate(alcohol = ifelse(alcohol == 777, NA, ifelse(alcohol == 999, NA, alcohol))) # Set refused & don't know to NA
+  # Set refused & don't know to NA
+  mutate(alcohol = ifelse(alcohol == 777, NA, ifelse(alcohol == 999, NA, alcohol)))
 table(alcohol2015$alcohol, useNA = "always") # 1,025 in NA, 1,728 in 0, range 1:15
 hist(alcohol2015$alcohol, breaks = -1:15)
 # Very skewed values with most in zero -> reduce categories to 0-4+
 alcohol2015 <- alcohol2015 %>% 
   mutate(alcohol = ifelse(alcohol > 4, 4, alcohol))
-table(alcohol2015$alcohol, useNA = "always") # 1,025 in NA, 1,728 in 0, 883 in 1, 895 in 2, 459 in 3, 745 in 4+
+table(alcohol2015$alcohol, useNA = "always")
+# 1,025 in NA, 1,728 in 0, 883 in 1, 895 in 2, 459 in 3, 745 in 4+
 hist(alcohol2015$alcohol, breaks = -1:4)
 # Now remove unnecessary variables from alcohol
 alcohol2015 <- alcohol2015 %>% select(-ALQ101, -ALQ110, -ALQ130)
@@ -379,20 +387,23 @@ alcohol2017 <- alcohol2017 %>%
              ALQ121 == 0 ~ as.integer(0), # If never had a drink in last year - set to zero
              TRUE ~ as.integer(ALQ130) # For rest keep ALQ130
            )) %>% 
-  mutate(alcohol = ifelse(alcohol == 777, NA, ifelse(alcohol == 999, NA, alcohol))) # Set refused & don't know to NA
+  # Set refused & don't know to NA
+  mutate(alcohol = ifelse(alcohol == 777, NA, ifelse(alcohol == 999, NA, alcohol)))
 table(alcohol2017$alcohol, useNA = "always") # 410 in NA, 1,634 in 0, 1,317 in 1, range 1:15
 hist(alcohol2017$alcohol, breaks = -1:15)
 # Very skewed values with most in zero -> reduce categories to 0-4+
 alcohol2017 <- alcohol2017 %>% 
   mutate(alcohol = ifelse(alcohol > 4, 4, alcohol))
-table(alcohol2017$alcohol, useNA = "always") # 410 in NA, 1,634 in 0, 1,317 in 1, 1,040 in 2, 479 in 3, 653 in 4+
+table(alcohol2017$alcohol, useNA = "always")
+# 410 in NA, 1,634 in 0, 1,317 in 1, 1,040 in 2, 479 in 3, 653 in 4+
 hist(alcohol2017$alcohol, breaks = -1:4)
 # Now remove unnecessary variables from alcohol
 alcohol2017 <- alcohol2017 %>% select(-ALQ111, -ALQ121, -ALQ130)
 summary(alcohol2017) # 5,533 obs of 2 variables
 # Combine years
 alcohol1517 <- bind_rows(alcohol2015, alcohol2017) # 11,268 obs of 2 variables
-table(alcohol1517$alcohol, useNA = "always") # 1,435 in NA, 3,362 in 0, 2,200 in 1, 1,935 in 2, 938 in 3, 1,398 in 4+
+table(alcohol1517$alcohol, useNA = "always")
+# 1,435 in NA, 3,362 in 0, 2,200 in 1, 1,935 in 2, 938 in 3, 1,398 in 4+
 hist(alcohol1517$alcohol, breaks = -1:4)
 # Official guidelines for men are to limit to under 2 alcoholic drinks/day - reduce categories
 # New categories where 0 = no alcohol, 1= 1-2 drinks/day, 2 = 3+ drinks/day
@@ -431,11 +442,12 @@ phq %>%
   sapply(table) # 1-5 people refused (7) or didn't know (9) in each question
 # Subset rows that have NAs
 deprnas <- phq[!complete.cases(phq), ]
-deprnas %>% summary() # DPQ010 - DPQ030 have some zeros
-# Most are all NAs, but some, like 86784 have some zeros and NAs
+deprnas %>% summary() # 287 obs of 10 variables
+# There is only one person who answered zero for DPQ010 - DPQ030, and nothing else
+# 286 complete NAs, only SEQN=86784 has some zeros for first 3 q.s
 # Set all values to NA
 deprnas[deprnas == 0] <- NA
-deprnas %>% summary() # All values are now set to NA in deprnas
+deprnas %>% summary() # All values (287) are now set to NA in deprnas
 # Subset unique responses of 7 or 9 across questions
 temp <- deprincomp <- na.omit(deprnas) # Use last set to create an empty subset with same column names
 for(i in 2:10){
@@ -443,7 +455,35 @@ for(i in 2:10){
   deprincomp <- bind_rows(deprincomp, temp) %>% distinct(SEQN, .keep_all = T)
 }
 deprincomp
-# Set all participants with 7 or 9 in any question to NA
+# 14 participants had refusals (7) or don't know (9) in some questions
+#      SEQN DPQ010 DPQ020 DPQ030 DPQ040 DPQ050 DPQ060 DPQ070 DPQ080 DPQ090
+# 1   84327      9      0      0      0      0      0      0      0      0
+# 2   86942      7      2      3      0      0      2      2      3      2
+# 3   88054      7      0      0      0      0      0      0      0      0
+# 4   89598      7      0      0      0      0      0      0      0      0
+# 5   93097      7      0      0      2      1      0      0      2      0
+# 6   94327      7      0      7      7      7      7      7      7      7
+# 7   98358      9      0      1      0      0      0      2      0      0
+# 8  101073      9      9      9      9      9      9      9      9      0
+# 9   85636      1      7      1      1      0      0      0      0      7
+# 10  93887      0      9      9      9      9      9      9      9      9
+# 11  93405      0      1      2      2      9      0      3      3      0
+# 12 101880      0      0      0      0      9      0      0      0      0
+# 13 101758      2      1      1      1      0      9      0      0      0
+# 14  96512      0      0      0      0      0      0      9      0      0
+
+# SEQN == 84327, 88054, 89598, 93097, 98358, 85636, 101880, 101758, 96512 (9 participants) ->
+# All have 1-2 questions missing, but even if answer is 3, qualify as not depressed
+# SEQN == 86942, 93405 (2 participants) -> have 1 question missing
+# Even if answer is 0, still qualify as depressed
+# SEQN == 94327, 101073, 93887 (3 participants) -> have 8 questions missing -> set to NA
+
+# Create vector for participants with 1-2 missing questions to later impute with rounded mean
+imputed_depr <- c(84327, 88054, 89598, 93097, 98358, 85636, 101880, 101758, 96512, 86942, 93405)
+# Remove these participants from deprincomp dataset
+deprincomp <- deprincomp %>% filter(SEQN %in% c(94327, 101073, 93887))
+deprincomp
+# Set participants with many missing answers to NA
 for(i in seq_len(nrow(deprincomp))){
   for(j in 2:10){
     deprincomp[i, j] <- NA
@@ -453,7 +493,7 @@ deprincomp
 # Combine deprincomp and deprnas
 nadepr <- bind_rows(deprincomp, deprnas)
 head(nadepr, 20)
-nadepr %>% summary()
+nadepr %>% summary() # 290 obs of 10 variables with NA in all questions (except SEQN)
 # Create vector with list of SEQN that (should) have NAs
 nadepr.v <- nadepr$SEQN
 # Update phq so that it has NAs in desired places
@@ -467,7 +507,30 @@ for(i in seq_along(nadepr.v)){
 }
 # Check that change was done correctly
 head(phq, 20)
-phq %>% filter(is.na(DPQ030)) %>% summary()
+phq %>% filter(is.na(DPQ030)) %>% summary() # 290 NAs
+summary(phq)
+
+## Impute answers with 1-2 missing/refused questions to simple rounded mean
+# Create a vector with rounded mean of answers
+dpq_q.rmean <- phq %>% 
+  filter(! (SEQN %in% imputed_depr)) %>% # Remove 7s and 9s
+  colMeans(na.rm = TRUE) %>% 
+  round()
+dpq_q.rmean
+# Worth noting that rounded mean is 0 for all except DPQ030 & DPQ040 ->
+# These two questions do not have values that need imputing - could impute to zero
+for(i in seq_len(nrow(phq))){
+  if(phq[i,1] %in% imputed_depr){
+    for(j in 2:10){
+      if(!is.na(phq[i,j])){
+        if(phq[i,j] > 3){
+          phq[i,j] <- dpq_q.rmean[j]
+        }}}}}
+summary(phq) # 3,792 obs of 10 variables, 290 NAs, means changed as predicted
+# Check imputed participants
+phq %>% filter(SEQN %in% imputed_depr)
+# Verified that imputations done correctly
+
 # Add values of DPQ for PHQ-9 score
 phq <- phq %>% mutate(phq9 = rowSums(phq[,2:10]))
 head(phq, 20)
@@ -477,7 +540,7 @@ table(phq$phq9)
 phq <- phq %>% mutate(depressed = ifelse(phq9 > 9, 1, ifelse(phq9 < 10, 0, NA)))
 head(phq, 20)
 hist(phq$depressed, breaks = 2)
-table(phq$depressed) # 3,241 not depressed, and 250 depressed
+table(phq$depressed, useNA = "always") # 3,250 not depressed, and 252 depressed, 290 NA
 # Subset phq to only include sum and indicator
 phq <- phq %>% select(SEQN, phq9, depressed)
 summary(phq)
@@ -486,15 +549,16 @@ slpexcov <- merge(slpexcov, phq, by = 'SEQN') %>%
   select(-DPQ010, -DPQ020, -DPQ030, -DPQ040, -DPQ050, -DPQ060, -DPQ070, -DPQ080, -DPQ090)
 summary(slpexcov) # 3,792 obs of 26 variables
 
-### Review how many variables I actually imputed
-slpexcov %>% filter(SEQN %in% imputed)
+### Review how many variables I actually imputed for exercise
+slpexcov %>% filter(SEQN %in% imputed_exer)
 # Currently there are only 10 imputed values
 
 #### Final steps for table
 # After discussion with team, decided to drop some variables
 # Create table with agreed upon variables
-slpexcov1517 <- dplyr::select(slpexcov, SEQN, exminwk, targetex, slphrs, targetslp, age, raceeth, educ, marital, 
-                         household, income, snoring, apnea, bmi, bmicat, waist, smoke, alcohol, phq9, depressed)
+slpexcov1517 <- dplyr::select(slpexcov, SEQN, exminwk, targetex, slphrs, targetslp, age, raceeth, educ,
+                              marital, household, income, snoring, apnea, bmi, bmicat, waist, smoke, 
+                              alcohol, phq9, depressed)
 summary(slpexcov1517)
 write_csv(slpexcov1517, "slpexcov1517.csv")
 

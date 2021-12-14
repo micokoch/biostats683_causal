@@ -42,8 +42,8 @@ summary(binslpexcov1517)
 binslpexcov1517 %>% select(-SEQN) %>% table()
 #          targetslp
 # targetex    0    1
-#        0  544 1683
-#        1  286 1279
+#        0  701 1526
+#        1  429 1136
 
 slpexcov1517 %>% 
   dplyr::select(targetex, targetslp) %>% 
@@ -53,10 +53,10 @@ slpexcov1517 %>%
 # # Groups:   targetex [2]
 #   targetex targetslp     n
 #       <dbl>     <dbl> <int>
-# 1        0         0   544
-# 2        0         1  1683
-# 3        1         0   286
-# 4        1         1  1279
+# 1        0         0   701
+# 2        0         1  1526
+# 3        1         0   429
+# 4        1         1  1136
 
 # Fit a logistic model to the data without confounders and look at results
 glm.slpex = glm(targetslp ~ targetex, family = binomial(link = "logit"), data = slpexcov1517)
