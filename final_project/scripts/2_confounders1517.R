@@ -215,7 +215,7 @@ demogcov1517 <- dplyr::select(demogconf1517, SEQN, gender, males, age, raceeth, 
 summary(demogcov1517) # 4,009 obs of 11 variables
 # NAs: 2,690 in usyears, 2 in educ, 2 in marital, 361 in income
 
-# Merge with slpex and demographic confounders
+# Merge slpex and demographic confounders
 slpexdem <- merge(slpex, demogcov1517, by = 'SEQN') # 3,981 obs of 17 variables
 summary(slpexdem)
 head(slpexdem)

@@ -43,7 +43,8 @@ exer1517 <- bind_rows(exercise2015, exercise2017) # initially 15,111 observation
 write_csv(exer1517, "exer1517_complete.csv")
 exer1517 <- exer1517 %>% 
   drop_na('PAQ650', 'PAQ665') # fell to 12,819 obs
-summary(exer1517) # PAQ655 & PAD660 have 9,192 & 9,199 NA each, & PAQ670 & PAD675 have 7,555 & 7,572 NA each
+summary(exer1517)
+# PAQ655 & PAD660 have 9,192 & 9,199 NA each, & PAQ670 & PAD675 have 7,555 & 7,572 NA each
 
 ### Vigorous exercise
 # Look at responses for vigorous exercise
@@ -59,9 +60,12 @@ exer1517$PAD660[exer1517$PAQ650 == 2] <- 0
 summary(exer1517) # All NAs for PAQ655 disappear and only seven remain for PAD660
 # Make a simple imputation of the rounded mean if days or minutes of exercise not specified
 # First look at how many will be imputed
-table(exer1517$PAQ650, useNA = "always") # 3,627 are 1, 9,190 are 2
-table(exer1517$PAQ655, useNA = "always") # Only 1 is 99 (1 imputation), 9,190 are 0, 915 are 3...
-table(exer1517$PAD660, useNA = "always") # 4 are 9999, 7 NAs (11 imputations), 9,190 are 0, 1,122 are 60..
+table(exer1517$PAQ650, useNA = "always")
+# 3,627 are 1, 9,190 are 2
+table(exer1517$PAQ655, useNA = "always")
+# Only 1 is 99 (1 imputation), 9,190 are 0, 915 are 3...
+table(exer1517$PAD660, useNA = "always")
+# 4 are 9999, 7 NAs (11 imputations), 9,190 are 0, 1,122 are 60..
 # Days vigorous exercise simple imputation with mean - one imputation
 # Change missing values to NA
 exer1517 <- exer1517 %>% 
@@ -125,9 +129,12 @@ exer1517$PAD675[exer1517$PAQ665 == 2] <- 0
 summary(exer1517) # All NAs for PAQ670 disappear and only 16 remain for PAD675
 # Make a simple imputation of the mean if days or minutes of exercise not specified
 # First look at how many will be imputed
-table(exer1517$PAQ665, useNA = "always") # 5,262 are 7,551 are 2
-table(exer1517$PAQ670, useNA = "always") # 6 are 99 (6 imputations), 7,551 are 0, 1,293 are 3...
-table(exer1517$PAD675, useNA = "always") # 7 are 9999, 16 NAs (23 imputations), 7,551 are 0, 1,439 are 60..
+table(exer1517$PAQ665, useNA = "always")
+# 5,262 are 7,551 are 2
+table(exer1517$PAQ670, useNA = "always")
+# 6 are 99 (6 imputations), 7,551 are 0, 1,293 are 3...
+table(exer1517$PAD675, useNA = "always")
+# 7 are 9999, 16 NAs (23 imputations), 7,551 are 0, 1,439 are 60..
 # Days moderate exercise simple imputation with mean - 6 imputations
 # Change missing values to NA
 exer1517 <- exer1517 %>% 
@@ -193,7 +200,8 @@ highmodex <- exer1517 %>% subset(PAD675 > 300)
 highmodex
 # No real red flags after looking at participants in detail
 
-# Create new column of sum of moderate and vigorous exercise (multiply vigorous exercise times two)
+# Create new column of sum of moderate and vigorous exercise
+# Multiply vigorous exercise times two
 exer1517 <- exer1517 %>% 
   mutate(exminwk = ((vigexminwk*2) + modexminwk))
 summary(exer1517) #12,813 obs of 12 variables
@@ -289,7 +297,8 @@ save(imputed_exer, file = "imputed_exer.RData")
 #   mutate(targetslp = ifelse(slphrs > 6, 1, 0))
 # summary(sleep2013)
 # hist(sleep2013$targetslp, breaks = 2)
-### Note - there seems to be a change in methodology starting in 2015. Fewer people with little sleep.
+### Note - there seems to be a change in methodology starting in 2015.
+# Fewer people with little sleep.
 
 # 2015
 sleep2015 <- nhanes('SLQ_I') %>% 

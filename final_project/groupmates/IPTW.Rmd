@@ -1,10 +1,13 @@
 ---
 title: "IPTW Causal Project"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 ```{r}
 library(tidyverse)
 library(readxl)
+library(pander)
 ```
 
 
@@ -47,11 +50,14 @@ prob.0W <- 1 - prob.1W #prediced probability of not getting the exercise
 ```
 
 look at distribution of propensity scores:
+
+$\hat{\mathbb{P}}(A=1|W_i)$
 ```{r}
-summary(prob.1W)
+summary(prob.1W) %>% pander
 ```
+$\hat{\mathbb{P}}(A=0|W_i)$
 ```{r}
-summary(prob.0W)
+summary(prob.0W) %>% pander
 ```
 
 # 2) Create the weights:
@@ -61,17 +67,23 @@ wt0 <- as.numeric(ObsData$A==0)/prob.0W
 ```
 
 Look at weights:
+
+$\frac{\mathbb{I}(A_i=1)}{\hat{\mathbb{P}}(A=1|W_i)}$
 ```{r}
-summary(wt1)
+summary(wt1) %>% pander
 ```
+$\frac{\mathbb{I}(A_i=0)}{\hat{\mathbb{P}}(A=0|W_i)}$
 ```{r}
-summary(wt0)
+summary(wt0) %>% pander
 ```
 # 3) Estimate:
 ```{r}
 IPTW<- mean( wt1*ObsData$Y) - mean( wt0*ObsData$Y)
 
 IPTW
+
+unadj<-mean(ObsData$Y[ObsData$A==1])-mean(ObsData$Y[ObsData$A==0])
+unadj
 ```
 
 # 4) Arbitrarily truncate weights at 10, to see what happens:
@@ -110,7 +122,7 @@ wt0.trunc5<- wt0
 wt0.trunc5[ wt0.trunc>5] <-5
 ```
 
-IPTW with truncated weights at 10:
+IPTW with truncated weights at 5:
 ```{r}
 mean(wt1.trunc5*ObsData$Y) - mean( wt0.trunc5*ObsData$Y)
 ```
