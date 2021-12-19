@@ -93,6 +93,7 @@ write.csv(full_exslp_1517, "full_exslp_1517.csv")
 ##### Read in variables
 full_exslp_1517 <- read_csv("full_exslp_1517.csv")
 clean_exslp_1517 <- full_exslp_1517
+# A new column was added that indexes all participants
 
 ##### EXERCISE
 ### Rename exercise variables
@@ -115,64 +116,70 @@ clean_exslp_1517 %>%
   summarise(n = n()) # 2,830 are 1, 8,437 are 2, and 1 is 9
 table(clean_exslp_1517$vigex, useNA = "always") # No NAs
 # Change to NA respondents who didn't know or refused to answer q on vigorous exercise
+# Also, set to zero participants who didn't do vigorous exercise
 clean_exslp_1517 <- clean_exslp_1517 %>% 
   mutate(vigex = ifelse(vigex == 7, NA, 
-                         ifelse(vigex == 9, NA, vigex)))
+                         ifelse(vigex == 9, NA, 
+                                ifelse(vigex == 2, 0, vigex))))
 table(clean_exslp_1517$vigex, useNA = "always")
-# 2,830 are 1, 8,437 are 2, and 1 is NA
+# 8437 are 0, 2830 are 1, and 1 is NA
 # If participant wrote No to vigorous exercise, set vigorous days and minutes to zero
 table(clean_exslp_1517$daysvigex, useNA = "always")
 # Only 1 in 99 (days 1:7 - 354 554 774 487 398 137 125), 8,438 NAs
-clean_exslp_1517$daysvigex[clean_exslp_1517$vigex == 2] <- 0
+clean_exslp_1517$daysvigex[clean_exslp_1517$vigex == 0] <- 0
 table(clean_exslp_1517$daysvigex, useNA = 'always')
 # 8,437 new zeros (0), 1 in 99, 1 in NA
 table(clean_exslp_1517$minvigex, useNA = "always")
 # Only 2 in 9999 (minutes 10:480), 8,445 NAs
-clean_exslp_1517$minvigex[clean_exslp_1517$vigex == 2] <- 0
+clean_exslp_1517$minvigex[clean_exslp_1517$vigex == 0] <- 0
 table(clean_exslp_1517$minvigex, useNA = "always")
 # 8,437 new zeros, 2 in 9999, 8 NAs
 summary(clean_exslp_1517[,38:43]) # One NA for vigex and daysvigex and eight for minvigex
 #      vigex        daysvigex           minvigex          modex        daysmodex      minmodex 
-# Min.   :1.000   Min.   : 0.0000   Min.   :   0.0   Min.   :1.0   Min.   : 1.000   Min.   :  10.00  
-# 1st Qu.:1.000   1st Qu.: 0.0000   1st Qu.:   0.0   1st Qu.:1.0   1st Qu.: 2.000   1st Qu.:  30.00  
-# Median :2.000   Median : 0.0000   Median :   0.0   Median :2.0   Median : 3.000   Median :  45.00  
-# Mean   :1.749   Mean   : 0.8448   Mean   :  20.7   Mean   :1.6   Mean   : 3.595   Mean   :  74.67  
-# 3rd Qu.:2.000   3rd Qu.: 1.0000   3rd Qu.:  10.0   3rd Qu.:2.0   3rd Qu.: 5.000   3rd Qu.:  60.00  
-# Max.   :2.000   Max.   :99.0000   Max.   :9999.0   Max.   :9.0   Max.   :99.000   Max.   :9999.00  
+# Min.   :0.000   Min.   : 0.0000   Min.   :   0.0   Min.   :1.0   Min.   : 1.000   Min.   :  10.00  
+# 1st Qu.:0.000   1st Qu.: 0.0000   1st Qu.:   0.0   1st Qu.:1.0   1st Qu.: 2.000   1st Qu.:  30.00  
+# Median :0.000   Median : 0.0000   Median :   0.0   Median :2.0   Median : 3.000   Median :  45.00  
+# Mean   :0.2512  Mean   : 0.8448   Mean   :  20.7   Mean   :1.6   Mean   : 3.595   Mean   :  74.67  
+# 3rd Qu.:1.000   3rd Qu.: 1.0000   3rd Qu.:  10.0   3rd Qu.:2.0   3rd Qu.: 5.000   3rd Qu.:  60.00  
+# Max.   :1.000   Max.   :99.0000   Max.   :9999.0   Max.   :9.0   Max.   :99.000   Max.   :9999.00  
 # NA's   :1       NA's   :1         NA's   :8                      NA's   :6728     NA's   :6742     
 
-# Look at data that should and shouldn't be imputed be imputed
+# Look at data that should be imputed
 # vigex - Vigorous recreational activities (yes/no)
 table(clean_exslp_1517$vigex, useNA = "always")
 clean_exslp_1517 %>% filter(is.na(vigex))
 # For vigex there is only one NA (SEQN == 92202)
 paq650na <- clean_exslp_1517 %>% filter(SEQN == 92202)
-# Has incomplete data for vigorous exercise, but complete for moderate. Set values to 0
-clean_exslp_1517$vigex[clean_exslp_1517$SEQN == 92202] <- 2
-clean_exslp_1517$daysvigex[clean_exslp_1517$SEQN == 92202] <- 0
-clean_exslp_1517$minvigex[clean_exslp_1517$SEQN == 92202] <- 0
-# Check changes done correctly
-paq650na <- clean_exslp_1517 %>% filter(SEQN == 92202)
+
+# After reviewing lit, decided to use mice to impute data
+# # Has incomplete data for vigorous exercise, but complete for moderate. Set values to 0
+# clean_exslp_1517$vigex[clean_exslp_1517$SEQN == 92202] <- 0
+# clean_exslp_1517$daysvigex[clean_exslp_1517$SEQN == 92202] <- 0
+# clean_exslp_1517$minvigex[clean_exslp_1517$SEQN == 92202] <- 0
+# # Check changes done correctly
+# paq650na <- clean_exslp_1517 %>% filter(SEQN == 92202)
+
 summary(clean_exslp_1517[,38:40])
-# Hardly any changes in mean values - reasonable change
+# No changes in mean values
 #     vigex          daysvigex          minvigex      
-# Min.   :1.000   Min.   : 0.0000   Min.   :   0.0  
-# 1st Qu.:1.000   1st Qu.: 0.0000   1st Qu.:   0.0  
-# Median :2.000   Median : 0.0000   Median :   0.0  
-# Mean   :1.749   Mean   : 0.8447   Mean   :  20.7  
-# 3rd Qu.:2.000   3rd Qu.: 1.0000   3rd Qu.:  10.0  
-# Max.   :2.000   Max.   :99.0000   Max.   :9999.0  
-#                                   NA's   :7     
+# Min.   :0.000   Min.   : 0.0000   Min.   :   0.0  
+# 1st Qu.:0.000   1st Qu.: 0.0000   1st Qu.:   0.0  
+# Median :0.000   Median : 0.0000   Median :   0.0  
+# Mean   :0.2512  Mean   : 0.8448   Mean   :  20.7  
+# 3rd Qu.:1.000   3rd Qu.: 1.0000   3rd Qu.:  10.0  
+# Max.   :1.000   Max.   :99.0000   Max.   :9999.0  
+# NA's   :1       NA's   :1         NA's   :8     
+
 table(clean_exslp_1517$vigex, useNA = "always")
-# 2830 are 1, 8438 are 2, 0 NA
+# 8437 are 0, 2830 are 1, , 1 NA
 
 #daysvigex - Days vigorous recreational activities
 table(clean_exslp_1517$daysvigex, useNA = "always")
-# One is 99, no NAs, (1 imputation), 8438 are 0, 774 are 3...
+# One is 99, no NAs, (1 imputation), 8437 are 0, 774 are 3...
 # Change missing values to NA
 clean_exslp_1517 <- clean_exslp_1517 %>% 
   mutate(daysvigex = ifelse(daysvigex > 10, NA, daysvigex))
-summary(clean_exslp_1517$daysvigex) # Now 1 NA, mean = 0.836
+summary(clean_exslp_1517$daysvigex) # Now 2 NAs, mean = 0.8361
 
 # Keep track of imputations (to check final results)
 imputed_exer <- c()
@@ -180,15 +187,15 @@ imp <- clean_exslp_1517 %>% filter(is.na(daysvigex)) %>% select(SEQN)
 for(i in imp){
   imputed_exer <- append(imputed_exer, i)
 }
-imputed_exer # SEQN = 95778
+imputed_exer # SEQN = 92202 95778
 
 #minvigex - Minutes vigorous recreational
 table(clean_exslp_1517$minvigex, useNA = "always")
-# 2 are 9999, 7 NAs (9 imputations), 8438 are 0, 910 are 60..
+# 2 are 9999, 8 NAs (10 imputations), 8437 are 0, 910 are 60..
 # Change missing values to NA
 clean_exslp_1517 <- clean_exslp_1517 %>% 
   mutate(minvigex = ifelse(minvigex > 1000, NA, minvigex))
-summary(clean_exslp_1517$minvigex) # Went from 7 to 9 NAs, mean = 18.93
+summary(clean_exslp_1517$minvigex) # Went from 8 to 10 NAs, mean = 18.93
 
 # Keep track of imputations (to check final results)
 imp <- clean_exslp_1517 %>% filter(is.na(minvigex)) %>% select(SEQN)
@@ -196,8 +203,8 @@ for(i in imp){
   imputed_exer <- append(imputed_exer, i)
 }
 imputed_exer <- unique(imputed_exer)
-imputed_exer # Nine total elements
-# SEQN = (95778) 86404 88224 89043 89543 92417 97157 97445 98134
+imputed_exer # Ten total elements
+# SEQN = (92202 95778) 86404 88224 89043 89543 92417 97157 97445 98134
 save(imputed_exer, file='imputed_exer.Rdata')
 
 ### Moderate exercise
@@ -207,75 +214,80 @@ clean_exslp_1517 %>%
   summarise(n = n()) # 4540 are 1, 6724 are 2, and 4 are 9
 table(clean_exslp_1517$modex, useNA = "always") # No NAs
 # Change to NA respondents who didn't know or refused to answer q on moderate exercise
+# Also, set to zero participants who didn't do vigorous exercise
 clean_exslp_1517 <- clean_exslp_1517 %>% 
   mutate(modex = ifelse(modex == 7, NA, 
-                         ifelse(modex == 9, NA, modex)))
+                         ifelse(modex == 9, NA, 
+                                ifelse(modex == 2, 0, modex))))
 table(clean_exslp_1517$modex, useNA = "always")
-# 4540 are 1, 6724 are 2, and 4 are NA
+# 6724 are 2, 4540 are 1, and 4 are NA
 # If participant wrote No to moderate exercise, set vigorous days and minutes to zero
 table(clean_exslp_1517$daysmodex, useNA = "always")
 # Four in 99 (days 1:7 - 512  992 1139  599  634  173  487), 6728 NAs
-clean_exslp_1517$daysmodex[clean_exslp_1517$modex == 2] <- 0
+clean_exslp_1517$daysmodex[clean_exslp_1517$modex == 0] <- 0
 table(clean_exslp_1517$daysmodex, useNA = "always")
 # 6724 new zeros (0), four in 99, four NAs
 table(clean_exslp_1517$minmodex, useNA = "always")
 # Five in 9999 (minutes 10:600), 6742 NAs
-clean_exslp_1517$minmodex[clean_exslp_1517$modex == 2] <- 0
+clean_exslp_1517$minmodex[clean_exslp_1517$modex == 0] <- 0
 table(clean_exslp_1517$minmodex, useNA = "always")
 # 6724 new zeros, five in 9999, 18 NAs
 summary(clean_exslp_1517[,41:43]) # Four NAs for modex and daysmodex and 18 for minmodex
 #      modex          daysmodex           minmodex       
-# Min.   :1.000   Min.   : 0.000   Min.   :   0.00  
-# 1st Qu.:1.000   1st Qu.: 0.000   1st Qu.:   0.00  
-# Median :2.000   Median : 0.000   Median :   0.00  
-# Mean   :1.597   Mean   : 1.449   Mean   :  30.04  
-# 3rd Qu.:2.000   3rd Qu.: 3.000   3rd Qu.:  30.00  
-# Max.   :2.000   Max.   :99.000   Max.   :9999.00  
+# Min.   :0.000   Min.   : 0.000   Min.   :   0.00  
+# 1st Qu.:0.000   1st Qu.: 0.000   1st Qu.:   0.00  
+# Median :0.000   Median : 0.000   Median :   0.00  
+# Mean   :0.4031  Mean   : 1.449   Mean   :  30.04  
+# 3rd Qu.:1.000   3rd Qu.: 3.000   3rd Qu.:  30.00  
+# Max.   :1.000   Max.   :99.000   Max.   :9999.00  
 # NA's   :4       NA's   :4        NA's   :18 
 
-# Look at data that should and shouldn't be imputed be imputed
+# Look at data that should be imputed
 # modex - Moderate recreational activities (yes/no)
 table(clean_exslp_1517$modex, useNA = "always")
 # For modex there are four NAs
 temp <- clean_exslp_1517 %>% filter(is.na(modex))
-# Three have complete data on vigorous exercise (86537 88264 89806), but have zero days 
-# and minutes of moderate exercise -> set values to no exercise
+# Three have complete data on vigorous exercise (86537 88264 89806) with no vigorous exercise 
+# Missing days and minutes of moderate exercise -> decided to use mice
 paq665na_0 <- temp$SEQN[2:4] # 86537 88264 89806
-# One (86404) has data for vigorous exercise - 7 days, but not more ->
-# Change modex to 1 and later impute missing values
+# One (86404) has data for vigorous exercise - 7 days, but no minutes -> use mice
 paq665na_1 <- temp$SEQN[1] # 86404
-# Set paq665na_0 participants to no exercise
-for(i in 1:nrow(clean_exslp_1517)){
-  if(clean_exslp_1517[i, "SEQN"] %in% paq665na_0){
-    clean_exslp_1517[i, "modex"] <- 2
-    clean_exslp_1517[i, "daysmodex"] <- 0
-    clean_exslp_1517[i, "minmodex"] <- 0
-  }}
-temp <- clean_exslp_1517 %>% filter(SEQN %in% paq665na_0) # Correct
-# Set paq665na_1 to yes exercise (but no days or minutes)
-clean_exslp_1517$modex[clean_exslp_1517$SEQN == paq665na_1] <- 1
-temp <- clean_exslp_1517 %>% filter(SEQN %in% paq665na_1) # Correct
-# Check changes reasonable
+
+# Decided to impute these with mice
+# # Change modex to 1 and later impute missing values
+# # Set paq665na_0 participants to no exercise
+# for(i in 1:nrow(clean_exslp_1517)){
+#   if(clean_exslp_1517[i, "SEQN"] %in% paq665na_0){
+#     clean_exslp_1517[i, "modex"] <- 0
+#     clean_exslp_1517[i, "daysmodex"] <- 0
+#     clean_exslp_1517[i, "minmodex"] <- 0
+#   }}
+# temp <- clean_exslp_1517 %>% filter(SEQN %in% paq665na_0) # Correct
+# # Set paq665na_1 to yes exercise (but no days or minutes)
+# clean_exslp_1517$modex[clean_exslp_1517$SEQN == paq665na_1] <- 1
+# temp <- clean_exslp_1517 %>% filter(SEQN %in% paq665na_1) # Correct
+
+# Check table
 summary(clean_exslp_1517[,41:43])
 #      modex          daysmodex           minmodex       
-# Min.   :1.000   Min.   : 0.000   Min.   :   0.00  
-# 1st Qu.:1.000   1st Qu.: 0.000   1st Qu.:   0.00  
-# Median :2.000   Median : 0.000   Median :   0.00  
-# Mean   :1.597   Mean   : 1.449   Mean   :  30.04  
-# 3rd Qu.:2.000   3rd Qu.: 3.000   3rd Qu.:  30.00  
-# Max.   :2.000   Max.   :99.000   Max.   :9999.00  
-#                 NA's   :1        NA's   :15      
-# No changes in mean values - reasonable change
+# Min.   :0.000   Min.   : 0.000   Min.   :   0.00  
+# 1st Qu.:0.000   1st Qu.: 0.000   1st Qu.:   0.00  
+# Median :0.000   Median : 0.000   Median :   0.00  
+# Mean   :0.4031  Mean   : 1.449   Mean   :  30.04  
+# 3rd Qu.:1.000   3rd Qu.: 3.000   3rd Qu.:  30.00  
+# Max.   :1.000   Max.   :99.000   Max.   :9999.00  
+# NA's   :4       NA's   :4        NA's   :18   
+# No changes in mean values
 table(clean_exslp_1517$modex, useNA = "always")
-# 4541 are 1, 6727 are 2, 0 NA
+# 6724 are 0, 4540 are 1, , 4 NA
 
 #daysmodex - Days moderate recreational activities
 table(clean_exslp_1517$daysmodex, useNA = "always")
-# Four are 99, one is NA, (5 imputations), 6727 are 0, 1139 are 3...
+# Four are 99, four are NA, (5 imputations), 6724 are 0, 1139 are 3...
 # Change missing values to NA
 clean_exslp_1517 <- clean_exslp_1517 %>% 
   mutate(daysmodex = ifelse(daysmodex > 10, NA, daysmodex))
-summary(clean_exslp_1517$daysmodex) # Now five NAs, mean = 1.414
+summary(clean_exslp_1517$daysmodex) # Now eight NAs, mean = 1.414
 
 # Keep track of imputations (to check final results)
 imp <- clean_exslp_1517 %>% filter(is.na(daysmodex)) %>% select(SEQN)
@@ -284,15 +296,15 @@ for(i in imp){
 }
 imputed_exer <- unique(imputed_exer)
 imputed_exer
-# 13 total elements, 4 new ones: 91394  94019 101043 102534
+# 17 total elements, 7 new ones: 86537  88264  89806  91394  94019 101043 102534
 
 #minmodex - Minutes moderate recreational activities
 table(clean_exslp_1517$minmodex, useNA = "always")
-# 5 are 9999, 15 NAs (20 imputations), 6727 are 0, 1254 are 60..
+# 5 are 9999, 18 NAs (23 imputations), 6724 are 0, 1254 are 60..
 # Change missing values to NA
 clean_exslp_1517 <- clean_exslp_1517 %>% 
   mutate(minmodex = ifelse(minmodex > 1000, NA, minmodex))
-summary(clean_exslp_1517$minmodex) # Went from 15 to 20 NAs, mean = 25.6
+summary(clean_exslp_1517$minmodex) # Went from 18 to 23 NAs, mean = 25.61
 
 # Keep track of imputations (to check final results)
 imp <- clean_exslp_1517 %>% filter(is.na(minmodex)) %>% select(SEQN)
@@ -300,20 +312,20 @@ for(i in imp){
   imputed_exer <- append(imputed_exer, i)
 }
 imputed_exer <- unique(imputed_exer)
-imputed_exer # 23 total elements, 10 new ones:
+imputed_exer # 27 total elements, 10 new ones:
 # 83986  88348  88830  89159  91377  92357  92924  94506  97054 101252
 save(imputed_exer, file='imputed_exer.Rdata')
 
 # Check cleaned exercise results
 summary(clean_exslp_1517[,38:43])
 #      vigex        daysvigex       minvigex           modex          daysmodex       minmodex
-# Min.   :1.000   Min.   :0.000   Min.   :  0.00   Min.   :1.000   Min.   :0.000   Min.   :  0.0  
-# 1st Qu.:1.000   1st Qu.:0.000   1st Qu.:  0.00   1st Qu.:1.000   1st Qu.:0.000   1st Qu.:  0.0  
-# Median :2.000   Median :0.000   Median :  0.00   Median :2.000   Median :0.000   Median :  0.0  
-# Mean   :1.749   Mean   :0.836   Mean   : 18.93   Mean   :1.597   Mean   :1.414   Mean   : 25.6  
-# 3rd Qu.:2.000   3rd Qu.:1.000   3rd Qu.: 10.00   3rd Qu.:2.000   3rd Qu.:3.000   3rd Qu.: 30.0  
-# Max.   :2.000   Max.   :7.000   Max.   :480.00   Max.   :2.000   Max.   :7.000   Max.   :600.0  
-#                 NA's   :1       NA's   :9                        NA's   :5       NA's   :20     
+# Min.   :0.000   Min.   :0.000   Min.   :  0.00   Min.   :0.000   Min.   :0.000   Min.   :  0.0  
+# 1st Qu.:0.000   1st Qu.:0.000   1st Qu.:  0.00   1st Qu.:0.000   1st Qu.:0.000   1st Qu.:  0.0  
+# Median :0.000   Median :0.000   Median :  0.00   Median :0.000   Median :0.000   Median :  0.0  
+# Mean   :0.2512  Mean   :0.8361  Mean   : 18.93   Mean   :0.4031  Mean   :1.414   Mean   : 25.61  
+# 3rd Qu.:1.000   3rd Qu.:1.000   3rd Qu.: 10.00   3rd Qu.:1.000   3rd Qu.:3.000   3rd Qu.: 30.0  
+# Max.   :1.000   Max.   :7.000   Max.   :480.00   Max.   :1.000   Max.   :7.000   Max.   :600.0  
+# NA's   :1       NA's   :2       NA's   :10       NA's   :4       NA's   :8       NA's   :23 
 
 
 ##### SLEEP
@@ -357,14 +369,14 @@ clean_exslp_1517 %>% count(snoring)
 table(clean_exslp_1517$snoring, useNA = 'always')
 #    0    1    2    3    7    9 <NA> 
 # 2938 2577 1996 2913    9  835    0 
-hist(clean_exslp_1517$snoring, breaks = 0:9)
+hist(clean_exslp_1517$snoring, breaks = -1:9)
 # There are 835 don't know (9) and 9 refused (7) -> set all to NA
 clean_exslp_1517 <- clean_exslp_1517 %>% 
-  mutate(snoring = ifelse(snoring == 7, NA, ifelse(snoring == 9, NA, factor(snoring))))
-# Check numbers after factoring
+  mutate(snoring = ifelse(snoring == 7, NA, ifelse(snoring == 9, NA, snoring)))
+# Check numbers after changes
 clean_exslp_1517 %>% count(snoring)
 # 2938 - no snoring, 2577 - 1-2 times/wk, 1996 - 3-4 times/wk, 2913 - 5-7 times/wk, 844 NA
-hist(clean_exslp_1517$snoring, breaks = 0:4)
+hist(clean_exslp_1517$snoring, breaks = -1:3)
 # Now clean_exslp_1517 has 11,268 obs of 43 variables
 
 # apnea - Apnea
@@ -377,15 +389,15 @@ hist(clean_exslp_1517$apnea, breaks = 0:9)
 # There are 673 don't know (9) and 5 refused (7) -> set all to NA
 clean_exslp_1517 <- clean_exslp_1517 %>% 
   mutate(apnea = ifelse(apnea == 7, NA, ifelse(apnea == 9, NA, factor(apnea))))
-# Check numbers after factoring
+# Check numbers after factoring - pushed up factors from 1-4
 clean_exslp_1517 %>% count(apnea)
-# 8016 - no apnea, 1356 - 1-2 times/wk, 676 - 3-4 times/wk, 542 - 5-7 times/wk, 678 NA
+# 8016: no apnea (1), 1356: 1-2 times/wk (2), 676: 3-4 times/wk (3), 542: 5-7 times/wk (4), 678: NA
 hist(clean_exslp_1517$apnea, breaks = 0:4)
 # Not very well distributed - combine all "yes" answers
 clean_exslp_1517 <- clean_exslp_1517 %>% mutate(apnea = ifelse(apnea == 1, 0, 1))
 # Check numbers after factoring
 clean_exslp_1517 %>% count(apnea)
-# 8016 - no apnea, 2574 - apnea, 678 NA
+# 8016 - no apnea (0), 2574 - apnea (1), 678 NA
 hist(clean_exslp_1517$apnea, breaks = -1:1)
 # Now clean_exslp_1517 has 11268 obs of 43 variables
 
@@ -432,7 +444,7 @@ summary(clean_exslp_1517[34:43])
 
 # gender
 hist(clean_exslp_1517$gender, breaks = 2)
-clean_exslp_1517 %>% count(gender) # 5431 males (1), 5837 females
+clean_exslp_1517 %>% count(gender) # 5431 males (1), 5837 females (2)
 # Check that there are no missing values
 which(is.na(clean_exslp_1517$gender)) # Confirmed that no missing data for gender in NHANES codebooks
 # Now tibble has 11268 obs of 43 variables
@@ -528,12 +540,19 @@ hist(clean_exslp_1517$marital, breaks = 0:2)
 # pregnancy
 clean_exslp_1517 %>% count(pregnancy)
 # 8971 are NA, 125 pregnant(1), 2091 not (2), 81 unsure (3) -> set to NA
+clean_exslp_1517 %>% select(c(gender, pregnancy)) %>% filter(gender == 1) %>% table(useNA = 'always')
+# 5431 men with NA for pregnancy
+# Set all men to 0, not pregnant to 0, unsure to 2
 clean_exslp_1517 <- clean_exslp_1517 %>%
-  mutate(pregnancy = ifelse(pregnancy == 3, NA, factor(pregnancy)))
-# Check that after factoring, codes are the same
+  mutate(pregnancy = ifelse(gender == 1, 0, 
+                            ifelse(pregnancy == 2, 0, 
+                                   ifelse(pregnancy == 3, pregnancy - 1, pregnancy))))
+# Check results - 7522 is correct for zero, now change 3540 to NA
+clean_exslp_1517 <- clean_exslp_1517 %>%
+  mutate(pregnancy = ifelse(is.na(pregnancy), 2, pregnancy))
 clean_exslp_1517 %>% count(pregnancy)
-# Correct, now 9052 NA
-hist(clean_exslp_1517$pregnancy, breaks = 0:2)
+# Correct, now 7522 are 0, 125 are 1, 3621 are 3 (unsure)
+hist(clean_exslp_1517$pregnancy, breaks = -1:2)
 
 # household
 clean_exslp_1517 %>% count(household)
@@ -781,78 +800,85 @@ summary(clean_exslp_1517[30:38])
 # Max.   :3.0000   Max.   :3.0000   Max.   :3.0000  
 # NA's   :1023     NA's   :1026     NA's   :1026    
 
-# Finished with clean dataset, ready for imputations
+# Age goes from 18-80, but education is not available from 18-20
+clean_exslp_1517 %>% filter(age < 22) %>% select(c(17,21)) %>% table()
+#     educ
+# age   1  2  3  4
+#   18  0  0  0  0
+#   19  0  0  0  0
+#   20 23 57 70  1
+#   21 14 50 57  4
+# Remove 18 & 19 year olds
+clean_exslp_1517 <- clean_exslp_1517 %>% filter(age >= 20)
+# 10,739 obs of 38 variables
+clean_exslp_1517 %>% select(17, 21) %>% table()
+
+
+##### Finished with clean dataset, ready for imputations
+
+# Remove first column that was added when reading the csv file
+clean_exslp_1517 <- clean_exslp_1517 %>% select(-1)
+# 10,739 obs of 37 variables
 summary(clean_exslp_1517)
 
-# ...1            SEQN           WTINT2YR         WTMEC2YR         SDMVPSU         SDMVSTRA    
-# Min.   :    1   Min.   : 83732   Min.   :  4363   Min.   :  4580   Min.   :1.000   Min.   :119.0  
-# 1st Qu.: 2818   1st Qu.: 88600   1st Qu.: 16078   1st Qu.: 16851   1st Qu.:1.000   1st Qu.:126.0  
-# Median : 5634   Median : 93528   Median : 24831   Median : 26026   Median :2.000   Median :133.0  
-# Mean   : 5634   Mean   : 93391   Mean   : 41271   Mean   : 43270   Mean   :1.502   Mean   :133.5  
-# 3rd Qu.: 8451   3rd Qu.: 98159   3rd Qu.: 44146   3rd Qu.: 47235   3rd Qu.:2.000   3rd Qu.:141.0  
-# Max.   :11268   Max.   :102956   Max.   :433085   Max.   :419763   Max.   :2.000   Max.   :148.0  
+# SEQN           WTINT2YR         WTMEC2YR         SDMVPSU         SDMVSTRA         vigex       
+# Min.   : 83732   Min.   :  4363   Min.   :  4580   Min.   :1.000   Min.   :119.0   Min.   :0.0000  
+# 1st Qu.: 88576   1st Qu.: 16373   1st Qu.: 17211   1st Qu.:1.000   1st Qu.:126.0   1st Qu.:0.0000  
+# Median : 93513   Median : 25132   Median : 26406   Median :2.000   Median :133.0   Median :0.0000  
+# Mean   : 93386   Mean   : 42025   Mean   : 44068   Mean   :1.503   Mean   :133.5   Mean   :0.2384  
+# 3rd Qu.: 98170   3rd Qu.: 44985   3rd Qu.: 48071   3rd Qu.:2.000   3rd Qu.:141.0   3rd Qu.:0.0000  
+# Max.   :102956   Max.   :433085   Max.   :419763   Max.   :2.000   Max.   :148.0   Max.   :1.0000  
+#                                                                                    NA's   :1       
 # 
-# vigex         daysvigex        minvigex          modex         daysmodex        minmodex    
-# Min.   :1.000   Min.   :0.000   Min.   :  0.00   Min.   :1.000   Min.   :0.000   Min.   :  0.0  
-# 1st Qu.:1.000   1st Qu.:0.000   1st Qu.:  0.00   1st Qu.:1.000   1st Qu.:0.000   1st Qu.:  0.0  
-# Median :2.000   Median :0.000   Median :  0.00   Median :2.000   Median :0.000   Median :  0.0  
-# Mean   :1.749   Mean   :0.836   Mean   : 18.93   Mean   :1.597   Mean   :1.414   Mean   : 25.6  
-# 3rd Qu.:2.000   3rd Qu.:1.000   3rd Qu.: 10.00   3rd Qu.:2.000   3rd Qu.:3.000   3rd Qu.: 30.0  
-# Max.   :2.000   Max.   :7.000   Max.   :480.00   Max.   :2.000   Max.   :7.000   Max.   :600.0  
-#                 NA's   :1       NA's   :9                        NA's   :5       NA's   :20     
+#    daysvigex         minvigex          modex         daysmodex        minmodex         slphrs      
+#  Min.   :0.0000   Min.   :  0.00   Min.   :0.000   Min.   :0.000   Min.   :  0.0   Min.   : 2.000  
+#  1st Qu.:0.0000   1st Qu.:  0.00   1st Qu.:0.000   1st Qu.:0.000   1st Qu.:  0.0   1st Qu.: 7.000  
+#  Median :0.0000   Median :  0.00   Median :0.000   Median :0.000   Median :  0.0   Median : 7.500  
+#  Mean   :0.7865   Mean   : 17.56   Mean   :0.403   Mean   :1.412   Mean   : 25.5   Mean   : 7.646  
+#  3rd Qu.:0.0000   3rd Qu.:  0.00   3rd Qu.:1.000   3rd Qu.:3.000   3rd Qu.: 30.0   3rd Qu.: 8.500  
+#  Max.   :7.0000   Max.   :480.00   Max.   :1.000   Max.   :7.000   Max.   :600.0   Max.   :14.000  
+#  NA's   :2        NA's   :10       NA's   :4       NA's   :7       NA's   :21      NA's   :71      
 # 
-#     slphrs          snoring          apnea            gender           age        raceeth      usborn    
-# Min.   : 2.000   Min.   :1.000   Min.   :0.0000   Min.   :1.000   Min.   :18.00   1:3737   Min.   :1.00  
-# 1st Qu.: 7.000   1st Qu.:1.000   1st Qu.:0.0000   1st Qu.:1.000   1st Qu.:33.00   2:3039   1st Qu.:1.00  
-# Median : 8.000   Median :2.000   Median :0.0000   Median :2.000   Median :49.00   3:2510   Median :1.00  
-# Mean   : 7.679   Mean   :2.469   Mean   :0.2431   Mean   :1.518   Mean   :48.92   4:1982   Mean   :1.32  
-# 3rd Qu.: 8.500   3rd Qu.:4.000   3rd Qu.:0.0000   3rd Qu.:2.000   3rd Qu.:64.00            3rd Qu.:2.00  
-# Max.   :14.000   Max.   :4.000   Max.   :1.0000   Max.   :2.000   Max.   :80.00            Max.   :2.00  
-# NA's   :72       NA's   :844     NA's   :678                                               NA's   :4    
+#     snoring          apnea            gender           age        raceeth      usborn         usyears    
+#  Min.   :0.000   Min.   :0.0000   Min.   :1.000   Min.   :20.00   1:3598   Min.   :1.000   Min.   :1.00  
+#  1st Qu.:0.000   1st Qu.:0.0000   1st Qu.:1.000   1st Qu.:35.00   2:2868   1st Qu.:1.000   1st Qu.:4.00  
+#  Median :1.000   Median :0.0000   Median :2.000   Median :51.00   3:2401   Median :1.000   Median :6.00  
+#  Mean   :1.501   Mean   :0.2487   Mean   :1.519   Mean   :50.42   4:1872   Mean   :1.327   Mean   :5.34  
+#  3rd Qu.:3.000   3rd Qu.:0.0000   3rd Qu.:2.000   3rd Qu.:65.00            3rd Qu.:2.000   3rd Qu.:7.00  
+#  Max.   :3.000   Max.   :1.0000   Max.   :2.000   Max.   :80.00            Max.   :2.000   Max.   :9.00  
+#  NA's   :818     NA's   :671                                               NA's   :4       NA's   :7381 
 # 
-# usyears           educ          marital        pregnancy       household         income     
-# Min.   :1.000   Min.   :1.000   Min.   :1.000   Min.   :1.000   Min.   :1.000   Min.   :1.000  
-# 1st Qu.:4.000   1st Qu.:2.000   1st Qu.:1.000   1st Qu.:2.000   1st Qu.:2.000   1st Qu.:1.000  
-# Median :6.000   Median :3.000   Median :2.000   Median :2.000   Median :3.000   Median :2.000  
-# Mean   :5.294   Mean   :2.579   Mean   :1.596   Mean   :1.944   Mean   :3.192   Mean   :1.896  
-# 3rd Qu.:7.000   3rd Qu.:3.000   3rd Qu.:2.000   3rd Qu.:2.000   3rd Qu.:4.000   3rd Qu.:2.000  
-# Max.   :9.000   Max.   :4.000   Max.   :2.000   Max.   :2.000   Max.   :6.000   Max.   :3.000  
-# NA's   :7830    NA's   :544     NA's   :536     NA's   :9052                    NA's   :925    
+#       educ          marital        pregnancy       household         income         bmi       
+#  Min.   :1.000   Min.   :1.000   Min.   :0.000   Min.   :1.000   Min.   :1.0   Min.   :14.20  
+#  1st Qu.:2.000   1st Qu.:1.000   1st Qu.:0.000   1st Qu.:2.000   1st Qu.:1.0   1st Qu.:24.70  
+#  Median :3.000   Median :2.000   Median :0.000   Median :3.000   Median :2.0   Median :28.50  
+#  Mean   :2.579   Mean   :1.596   Mean   :0.637   Mean   :3.148   Mean   :1.9   Mean   :29.69  
+#  3rd Qu.:3.000   3rd Qu.:2.000   3rd Qu.:2.000   3rd Qu.:4.000   3rd Qu.:2.0   3rd Qu.:33.40  
+#  Max.   :4.000   Max.   :2.000   Max.   :2.000   Max.   :6.000   Max.   :3.0   Max.   :86.20  
+#  NA's   :15      NA's   :7                                       NA's   :868   NA's   :158    
 # 
-#       bmi            waist            smoke           alcohol           phq01            phq02       
-#  Min.   :14.20   Min.   : 56.40   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000  
-#  1st Qu.:24.40   1st Qu.: 87.70   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000  
-#  Median :28.40   Median : 98.60   Median :0.0000   Median :1.0000   Median :0.0000   Median :0.0000  
-#  Mean   :29.53   Mean   : 99.86   Mean   :0.4042   Mean   :0.8957   Mean   :0.3955   Mean   :0.3463  
-#  3rd Qu.:33.30   3rd Qu.:110.03   3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:0.0000  
-#  Max.   :86.20   Max.   :171.60   Max.   :1.0000   Max.   :2.0000   Max.   :3.0000   Max.   :3.0000  
-#  NA's   :172     NA's   :716      NA's   :10       NA's   :1435     NA's   :1031     NA's   :1020    
+#      waist           smoke           alcohol           phq01            phq02           phq03       
+#  Min.   : 57.9   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000   Min.   :0.000   Min.   :0.0000  
+#  1st Qu.: 88.6   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.000   1st Qu.:0.0000  
+#  Median : 99.1   Median :0.0000   Median :1.0000   Median :0.0000   Median :0.000   Median :0.0000  
+#  Mean   :100.5   Mean   :0.4193   Mean   :0.9023   Mean   :0.3957   Mean   :0.349   Mean   :0.6221  
+#  3rd Qu.:110.5   3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:0.000   3rd Qu.:1.0000  
+#  Max.   :171.6   Max.   :1.0000   Max.   :2.0000   Max.   :3.0000   Max.   :3.000   Max.   :3.0000  
+#  NA's   :686     NA's   :10       NA's   :1397     NA's   :991      NA's   :981     NA's   :982     
 # 
-#      phq03            phq04            phq05            phq06            phq07            phq08       
-#  Min.   :0.0000   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000  
-#  1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000  
-#  Median :0.0000   Median :1.0000   Median :0.0000   Median :0.0000   Median :0.0000   Median :0.0000  
-#  Mean   :0.6244   Mean   :0.7671   Mean   :0.3963   Mean   :0.2441   Mean   :0.2599   Mean   :0.1655  
-#  3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:1.0000   3rd Qu.:0.0000   3rd Qu.:0.0000   3rd Qu.:0.0000  
-#  Max.   :3.0000   Max.   :3.0000   Max.   :3.0000   Max.   :3.0000   Max.   :3.0000   Max.   :3.0000  
-#  NA's   :1021     NA's   :1022     NA's   :1023     NA's   :1026     NA's   :1023     NA's   :1026    
+#      phq04            phq05           phq06            phq07            phq08            phq09       
+#  Min.   :0.0000   Min.   :0.000   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000   Min.   :0.0000  
+#  1st Qu.:0.0000   1st Qu.:0.000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000  
+#  Median :1.0000   Median :0.000   Median :0.0000   Median :0.0000   Median :0.0000   Median :0.0000  
+#  Mean   :0.7675   Mean   :0.395   Mean   :0.2432   Mean   :0.2582   Mean   :0.1663   Mean   :0.0541  
+#  3rd Qu.:1.0000   3rd Qu.:1.000   3rd Qu.:0.0000   3rd Qu.:0.0000   3rd Qu.:0.0000   3rd Qu.:0.0000  
+#  Max.   :3.0000   Max.   :3.000   Max.   :3.0000   Max.   :3.0000   Max.   :3.0000   Max.   :3.0000  
+#  NA's   :983      NA's   :984     NA's   :987      NA's   :984      NA's   :987      NA's   :987     
 # 
-#      phq09       
-#  Min.   :0.0000  
-#  1st Qu.:0.0000  
-#  Median :0.0000  
-#  Mean   :0.0549  
-#  3rd Qu.:0.0000  
-#  Max.   :3.0000  
-#  NA's   :1026    
 
 # Write to csv file
 write.csv(clean_exslp_1517, "clean_exslp_1517.csv")
-# 11,268 obs of 38 variables
+# 10,739 obs of 37 variables
 
 #-#-#-#-#
-
-# Subset missing SEQN to check imputed values later - make this primary variable set
-# Then do MICE imputations
-# Then create new variables
 
