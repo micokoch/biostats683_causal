@@ -15,7 +15,6 @@ set.seed(252)
 
 ## Functions
 clean.slpex.data <- function(x){
-  nm <- deparse(substitute(x))
   x <- mutate(x, roworder = row_number(), .before = "vigex")
   x <- mutate(x, vigexminwk = unlist((x[,"daysvigex"] * x[,"minvigex"])), .after = "minvigex")
   x <- mutate(x, modexminwk = unlist((x[,"daysmodex"] * x[,"minmodex"])), .after = "minmodex")
@@ -23,8 +22,8 @@ clean.slpex.data <- function(x){
   x <- mutate(x, targetex = unlist(ifelse(x[,"exminwk"] < 150, 0, 1)), .before = "slphrs")
   x <- mutate(x, targetslp = unlist(ifelse(x[,"slphrs"] >= 7, 1, 0)), .after = "slphrs")
   x <- mutate(x, phqsum = rowSums(x[,29:37], na.rm = FALSE), .after = "phq09")
-  x <- mutate(x, depressed = unlist(ifelse(x[,"phqsum"] > 9, 1, ifelse(x[,"phqsum"] < 10, 0, NA))), .after = "phqsum")
-  x <- mutate(x, imputation = str_sub(nm, -1), .after = last_col())
+  x <- mutate(x, depressed = unlist(ifelse(x[,"phqsum"] > 9, 1, ifelse(x[,"phqsum"] < 10, 0, NA))), 
+              .after = "phqsum")
   return(x)
 }
 
@@ -86,6 +85,8 @@ add.seqn.wts <- function(x){
 }
 
 organize.slpex <- function(x){
+  nm <- deparse(substitute(x))
+  x <- mutate(x, imputation = str_sub(nm, -1), .after = last_col())
   a <- clean.slpex.data(x)
   b <- format.slpex.data(a)
   c <- men.20.64(b)
@@ -201,28 +202,19 @@ imputed.12 <- read_csv("imputedData.12.csv")
 ## Compare names and sizes of unimputed and imputed datasets
 names(unimputed.0)
 names(imputed.3)
-str(unimputed.0)
-str(imputed.12)
+# str(unimputed.0)
+# str(imputed.12)
 
 # Quick tests
-test <- clean.slpex.data(imputed.1)
-test2 <- format.slpex.data(test)
-test3 <- men.20.64(test2)
-test4 <- add.seqn.wts(test3)
+# test <- clean.slpex.data(imputed.1)
+# test2 <- format.slpex.data(test)
+# test3 <- men.20.64(test2)
+# test4 <- add.seqn.wts(test3)
 test5 <- organize.slpex(imputed.3)
-View(test4)
+View(test5)
 str(test5)
 names(test5)
-
-# organize.slpex <- function(x, seqn.wts = seqn.wts){
-#   a <- clean.slpex.data(x)
-#   b <- format.slpex.data(a)
-#   c <- men.20.64(b)
-#   d <- add.seqn.wts(c, seqn.wts = seqn.wts)
-#   return(d)
-# }
-
-
+### IT WORKS!!!!
 
 # Clean datasets
 unimputed.0.comp <- organize.slpex(unimputed.0)
@@ -274,10 +266,20 @@ write_csv(imputed.12.comp, "imputed.12.comp.csv")
 
 ##### Analysis of results
 ## Binary results
-unimputed.0.comp %>% selectselect(targetex, targetslp) %>% table()
-imputed.1.comp %>% selectselect(targetex, targetslp) %>% table()
-imputed.7.comp %>% selectselect(targetex, targetslp) %>% table()
-imputed.12.comp %>% selectselect(targetex, targetslp) %>% table()
+unimputed.0.comp %>% select(targetex, targetslp) %>% table()
+imputed.1.comp %>% select(targetex, targetslp) %>% table()
+imputed.7.comp %>% select(targetex, targetslp) %>% table()
+imputed.12.comp %>% select(targetex, targetslp) %>% table()
+
+unimputed.0.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
+imputed.2.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
+imputed.6.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
+imputed.11.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
+
+unimputed.0.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
+imputed.3.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
+imputed.5.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
+imputed.10.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
 
 ## Look at effect estimates
 # Individual datasets
