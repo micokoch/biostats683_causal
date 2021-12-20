@@ -3,6 +3,7 @@
 ### Libraries
 library(tidyverse)
 library(mice)
+library(riskCommunicator)
 # library(VIM)
 # library(nhanesA)
 # library(survey)
@@ -15,7 +16,7 @@ set.seed(252)
 
 ## Functions
 clean.slpex.data <- function(x){
-  x <- mutate(x, roworder = row_number(), .before = "vigex")
+  x <- mutate(x, .id = row_number(), .before = "vigex")
   x <- mutate(x, vigexminwk = unlist((x[,"daysvigex"] * x[,"minvigex"])), .after = "minvigex")
   x <- mutate(x, modexminwk = unlist((x[,"daysmodex"] * x[,"minmodex"])), .after = "minmodex")
   x <- mutate(x, exminwk = unlist(((x[,"vigexminwk"]*2) + x[,"modexminwk"])), .before = "slphrs")
@@ -30,7 +31,8 @@ clean.slpex.data <- function(x){
 format.slpex.data <- function(x){
   x <- x %>% 
     mutate(
-      roworder = as.integer(roworder),
+      .imp = as.integer(.imp),
+      .id = as.integer(.id),
       vigex = as.factor(vigex),
       daysvigex = as.integer(daysvigex),
       minvigex = as.integer(minvigex),
@@ -40,9 +42,9 @@ format.slpex.data <- function(x){
       minmodex = as.integer(minmodex),
       modexminwk = as.numeric(modexminwk),
       exminwk = as.numeric(exminwk),
-      targetex = as.factor(targetex),
+      targetex = as.numeric(targetex),
       slphrs = as.numeric(slphrs),
-      targetslp = as.factor(targetslp),
+      targetslp = as.numeric(targetslp),
       snoring = as.factor(snoring),
       apnea = as.factor(apnea),
       gender = as.factor(gender),
@@ -68,8 +70,7 @@ format.slpex.data <- function(x){
       phq08 = as.numeric(phq08),
       phq09 = as.numeric(phq09),
       phqsum = as.integer(phqsum),
-      depressed = as.factor(depressed),
-      imputation = as.integer(imputation)
+      depressed = as.factor(depressed)
     )
     return(x)
 }
@@ -80,19 +81,21 @@ men.20.64 <- function(x){
 }
 
 add.seqn.wts <- function(x){
-  x <- merge(x, seqn.wts, by = 'roworder')
+  x <- merge(x, seqn.wts, by = '.id')
   return(x)
 }
 
 organize.slpex <- function(x){
   nm <- deparse(substitute(x))
-  x <- mutate(x, imputation = str_sub(nm, -1), .after = last_col())
+  x <- mutate(x, .imp = str_sub(nm, -2, -1))
   a <- clean.slpex.data(x)
   b <- format.slpex.data(a)
   c <- men.20.64(b)
   d <- add.seqn.wts(c)
-  return(d)
+  e <- d %>% relocate(.imp)
+  return(e)
 }
+organize.slpex(imputed.04)
 
 binary.logistic <- function(x){
   glm.slpex = glm(targetslp ~ targetex, family = binomial(link = "logit"), data = x)
@@ -111,6 +114,7 @@ binary.logistic <- function(x){
   risk_diff.bin <- p1.bin - p0.bin
   print(risk_diff.bin)
   # Try Risk Communicator results
+  x <- x %>% mutate(targetex = as.factor(targetex))
   slpex.results.bin <- gComp(data = x, Y = "targetslp", X = "targetex", 
                              outcome.type = "binary", R = 200)
   print(slpex.results.bin)
@@ -136,11 +140,12 @@ full.logistic <- function(x){
   risk_diff.full <- p1.full - p0.full
   print(risk_diff.full)
   # Try Risk Communicator results
+  x <- x %>% mutate(targetex = as.factor(targetex))
   slpex.results.full <- gComp(data = x, Y = "targetslp", X = "targetex", 
                              Z = c("age", "raceeth", "educ", "marital", "household", 
                                    "income", "snoring", "apnea", "bmi", "waist", "smoke", 
                                    "alcohol", "depressed"), outcome.type = "binary", R = 200)
-  print(slpex.results.sat)
+  print(slpex.results.full)
   # Obtain risk difference value
   risk_diff.full <- as.numeric(slpex.results.full$results.df[1,4])
   print(risk_diff.full)
@@ -165,6 +170,7 @@ final.logistic <- function(x){
   risk_diff.pars <- p1.pars - p0.pars
   print(risk_diff.pars)
   # Try Risk Communicator results
+  x <- x %>% mutate(targetex = as.factor(targetex))
   slpex.results.pars <- gComp(data = x, Y = "targetslp", X = "targetex", 
                               Z = c("age", "raceeth", "educ", "marital", "bmi", "waist", 
                                     "depressed"), outcome.type = "binary", R = 200)
@@ -179,128 +185,162 @@ clean_exslp_1517 <- read_csv("clean_exslp_1517.csv")
 # Create dataset with SEQN and weights
 seqn.wts <- clean_exslp_1517 %>% select(-1, -usyears) %>% 
   select(SEQN, WTINT2YR, WTMEC2YR, SDMVPSU, SDMVSTRA) %>% 
-  mutate(roworder = row_number(), .before = "SEQN")
+  mutate(.id = row_number(), .before = "SEQN")
 write_csv(seqn.wts, "seqn.wts.csv")
-unimputed.0 <- clean_exslp_1517 %>% select(-1, -usyears) %>% 
+unimputed.00 <- clean_exslp_1517 %>% select(-1, -usyears) %>% 
   select(-SEQN, -WTINT2YR, -WTMEC2YR, -SDMVPSU, -SDMVSTRA)
-write_csv(unimputed.0, "unimputed.0.csv")
+write_csv(unimputed.00, "unimputed.00.csv")
 
 ## Read in datasets
-unimputed.0 <- read_csv("unimputed.0.csv")
-imputed.1 <- read_csv("imputedData.1.csv")
-imputed.2 <- read_csv("imputedData.2.csv")
-imputed.3 <- read_csv("imputedData.3.csv")
-imputed.4 <- read_csv("imputedData.4.csv")
-imputed.5 <- read_csv("imputedData.5.csv")
-imputed.6 <- read_csv("imputedData.6.csv")
-imputed.7 <- read_csv("imputedData.7.csv")
-imputed.8 <- read_csv("imputedData.8.csv")
-imputed.9 <- read_csv("imputedData.9.csv")
+unimputed.00 <- read_csv("unimputed.00.csv")
+imputed.01 <- read_csv("imputedData.01.csv")
+imputed.02 <- read_csv("imputedData.02.csv")
+imputed.03 <- read_csv("imputedData.03.csv")
+imputed.04 <- read_csv("imputedData.04.csv")
+imputed.05 <- read_csv("imputedData.05.csv")
+imputed.06 <- read_csv("imputedData.06.csv")
+imputed.07 <- read_csv("imputedData.07.csv")
+imputed.08 <- read_csv("imputedData.08.csv")
+imputed.09 <- read_csv("imputedData.09.csv")
 imputed.10 <- read_csv("imputedData.10.csv")
 imputed.11 <- read_csv("imputedData.11.csv")
 imputed.12 <- read_csv("imputedData.12.csv")
 ## Compare names and sizes of unimputed and imputed datasets
-names(unimputed.0)
-names(imputed.3)
-# str(unimputed.0)
+names(unimputed.00)
+names(imputed.03)
+# str(unimputed.00)
 # str(imputed.12)
 
 # Quick tests
-# test <- clean.slpex.data(imputed.1)
+# test <- clean.slpex.data(imputed.01)
 # test2 <- format.slpex.data(test)
 # test3 <- men.20.64(test2)
 # test4 <- add.seqn.wts(test3)
-test5 <- organize.slpex(imputed.3)
+test5 <- organize.slpex(imputed.03)
 View(test5)
 str(test5)
 names(test5)
 ### IT WORKS!!!!
 
 # Clean datasets
-unimputed.0.comp <- organize.slpex(unimputed.0)
-imputed.1.comp <- organize.slpex(imputed.1)
-imputed.2.comp <- organize.slpex(imputed.2)
-imputed.3.comp <- organize.slpex(imputed.3)
-imputed.4.comp <- organize.slpex(imputed.4)
-imputed.5.comp <- organize.slpex(imputed.5)
-imputed.6.comp <- organize.slpex(imputed.6)
-imputed.7.comp <- organize.slpex(imputed.7)
-imputed.8.comp <- organize.slpex(imputed.8)
-imputed.9.comp <- organize.slpex(imputed.9)
+unimputed.00.comp <- organize.slpex(unimputed.00)
+imputed.01.comp <- organize.slpex(imputed.01)
+imputed.02.comp <- organize.slpex(imputed.02)
+imputed.03.comp <- organize.slpex(imputed.03)
+imputed.04.comp <- organize.slpex(imputed.04)
+imputed.05.comp <- organize.slpex(imputed.05)
+imputed.06.comp <- organize.slpex(imputed.06)
+imputed.07.comp <- organize.slpex(imputed.07)
+imputed.08.comp <- organize.slpex(imputed.08)
+imputed.09.comp <- organize.slpex(imputed.09)
 imputed.10.comp <- organize.slpex(imputed.10)
 imputed.11.comp <- organize.slpex(imputed.11)
 imputed.12.comp <- organize.slpex(imputed.12)
 
 # Check cleaning
-names(unimputed.0.comp)
+names(unimputed.00.comp)
 names(imputed.10.comp)
-str(unimputed.0.comp)
-str(imputed.2.comp)
-table(unimputed.0.comp$vigexminwk)
-table(imputed.4.comp$vigexminwk)
-View(unimputed.0.comp)
-View(imputed.5.comp)
-View(filter(unimputed.0.comp, !complete.cases(unimputed.0.comp$vigex)))
-View(filter(imputed.6.comp, !complete.cases(imputed.6.comp$vigex)))
-View(filter(unimputed.0.comp, !complete.cases(unimputed.0.comp$daysmodex)))
-View(filter(imputed.8.comp, !complete.cases(imputed.8.comp$daysmodex)))
-View(filter(unimputed.0.comp, !complete.cases(unimputed.0.comp$minmodex)))
-View(filter(imputed.11.comp, !complete.cases(imputed.11.comp$minmodex)))
-View(filter(unimputed.0.comp, !complete.cases(unimputed.0.comp$phq01)))
-View(filter(imputed.9.comp, !complete.cases(imputed.9.comp$phq01)))
+str(unimputed.00.comp)
+str(imputed.02.comp)
+table(unimputed.00.comp$vigexminwk)
+table(imputed.04.comp$vigexminwk)
+# View(unimputed.00.comp)
+# View(imputed.05.comp)
+# View(filter(unimputed.00.comp, !complete.cases(unimputed.00.comp$vigex)))
+# View(filter(imputed.06.comp, !complete.cases(imputed.06.comp$vigex)))
+# View(filter(unimputed.00.comp, !complete.cases(unimputed.00.comp$daysmodex)))
+# View(filter(imputed.08.comp, !complete.cases(imputed.08.comp$daysmodex)))
+# View(filter(unimputed.00.comp, !complete.cases(unimputed.00.comp$minmodex)))
+# View(filter(imputed.11.comp, !complete.cases(imputed.11.comp$minmodex)))
+# View(filter(unimputed.00.comp, !complete.cases(unimputed.00.comp$phq01)))
+# View(filter(imputed.09.comp, !complete.cases(imputed.09.comp$phq01)))
 
 # Write full and clean datasets
-write_csv(unimputed.0.comp, "unimputed.0.comp.csv")
-write_csv(imputed.1.comp, "imputed.1.comp.csv")
-write_csv(imputed.2.comp, "imputed.2.comp.csv")
-write_csv(imputed.3.comp, "imputed.3.comp.csv")
-write_csv(imputed.4.comp, "imputed.4.comp.csv")
-write_csv(imputed.5.comp, "imputed.5.comp.csv")
-write_csv(imputed.6.comp, "imputed.6.comp.csv")
-write_csv(imputed.7.comp, "imputed.7.comp.csv")
-write_csv(imputed.8.comp, "imputed.8.comp.csv")
-write_csv(imputed.9.comp, "imputed.9.comp.csv")
+write_csv(unimputed.00.comp, "unimputed.00.comp.csv")
+write_csv(imputed.01.comp, "imputed.01.comp.csv")
+write_csv(imputed.02.comp, "imputed.02.comp.csv")
+write_csv(imputed.03.comp, "imputed.03.comp.csv")
+write_csv(imputed.04.comp, "imputed.04.comp.csv")
+write_csv(imputed.05.comp, "imputed.05.comp.csv")
+write_csv(imputed.06.comp, "imputed.06.comp.csv")
+write_csv(imputed.07.comp, "imputed.07.comp.csv")
+write_csv(imputed.08.comp, "imputed.08.comp.csv")
+write_csv(imputed.09.comp, "imputed.09.comp.csv")
 write_csv(imputed.10.comp, "imputed.10.comp.csv")
 write_csv(imputed.11.comp, "imputed.11.comp.csv")
 write_csv(imputed.12.comp, "imputed.12.comp.csv")
 
 ##### Analysis of results
 ## Binary results
-unimputed.0.comp %>% select(targetex, targetslp) %>% table()
-imputed.1.comp %>% select(targetex, targetslp) %>% table()
-imputed.7.comp %>% select(targetex, targetslp) %>% table()
+unimputed.00.comp %>% select(targetex, targetslp) %>% table()
+imputed.01.comp %>% select(targetex, targetslp) %>% table()
+imputed.07.comp %>% select(targetex, targetslp) %>% table()
 imputed.12.comp %>% select(targetex, targetslp) %>% table()
 
-unimputed.0.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
-imputed.2.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
-imputed.6.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
+unimputed.00.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
+imputed.02.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
+imputed.06.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
 imputed.11.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 1)
 
-unimputed.0.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
-imputed.3.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
-imputed.5.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
+unimputed.00.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
+imputed.03.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
+imputed.05.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
 imputed.10.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
 
 ## Look at effect estimates
-# Individual datasets
-binary.logistic(unimputed.0.comp)
-binary.logistic(imputed.2.comp)
-binary.logistic(imputed.6.comp)
-binary.logistic(imputed.11.comp)
+# # Individual datasets
+# binary.logistic(unimputed.00.comp)
+# binary.logistic(imputed.02.comp)
+# 
+# unimputed.00.comp %>% filter(inAnalysis == 1) %>% binary.logistic()
+# imputed.06.comp %>% filter(inAnalysis == 1) %>% binary.logistic()
+# imputed.11.comp %>% filter(inAnalysis == 1) %>% binary.logistic()
+# 
+# full.logistic(unimputed.00.comp)
+# full.logistic(imputed.03.comp)
+# 
+# unimputed.00.comp %>% filter(inAnalysis == 1) %>% full.logistic()
+# imputed.08.comp %>% filter(inAnalysis == 1) %>% full.logistic()
+# imputed.10.comp %>% filter(inAnalysis == 1) %>% full.logistic()
+# 
+# final.logistic(unimputed.00.comp)
+# final.logistic(imputed.04.comp)
+# 
+# unimputed.00.comp %>% filter(inAnalysis == 1) %>% final.logistic()
+# imputed.05.comp %>% filter(inAnalysis == 1) %>% final.logistic()
+# imputed.09.comp %>% filter(inAnalysis == 1) %>% final.logistic()
 
-full.logistic(unimputed.0.comp)
-full.logistic(imputed.3.comp)
-full.logistic(imputed.8.comp)
-full.logistic(imputed.10.comp)
 
-final.logistic(unimputed.0.comp)
-final.logistic(imputed.4.comp)
-final.logistic(imputed.5.comp)
-final.logistic(imputed.9.comp)
+### Look at combined imputed dataset
+# First combine imputed datasets into a long one
+load("imputed.Rdata")
+long.imputed.comp <- bind_rows(unimputed.00.comp, imputed.01.comp, imputed.02.comp, imputed.03.comp, 
+                               imputed.04.comp, imputed.05.comp, imputed.06.comp, imputed.07.comp,
+                               imputed.08.comp, imputed.09.comp, imputed.10.comp, imputed.11.comp, 
+                               imputed.12.comp)
+# 139,607 obs of 46 variables - 13 sets of 10,739 obs - correct!
+write_csv(long.imputed.comp, "long.imputed.comp.csv")
 
-# Look at combined imputed dataset
-bin.fit <- with(imputed, glm(targetslp ~ targetex, family = binomial(link = "logit")))
+# Make dataset into a mids object
+imputed_processed <- as.mids(long.imputed.comp, where = NULL, .imp = ".imp", .id = ".id")
+
+
+bin.fit <- with(imputed_processed, glm(targetslp ~ targetex, family = binomial(link = "logit")))
 summary(pool(bin.fit))
 
+full.fit <- with(imputed_processed, glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + 
+                                          factor(marital) + factor(household) + factor(income) + 
+                                          factor(snoring) + factor(apnea) + bmi + waist + 
+                                          factor(smoke) + factor(alcohol) + factor(depressed), 
+                                        family = binomial(link = "logit")))
+summary(pool(full.fit))
 
+final.fit <- with(imputed_processed, glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + 
+                                           factor(marital) + bmi + waist + factor(depressed), 
+                                         family = binomial(link = "logit")))
+summary(pool(final.fit))
 
+glm.slpexcov2 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+                      bmi + waist + factor(depressed),
+                    family = binomial(link = "logit"), data = x)
+print(summary(glm.slpexcov2))

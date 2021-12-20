@@ -142,24 +142,27 @@ imputed$imp$phq09
 imputed$meth
 # Completed data
 all_imputed <- complete(imputed, "all")
-imputedData.1 <- complete(imputed,1)
-write_csv(imputedData.1, "imputedData.1.csv")
-imputedData.2 <- complete(imputed,2)
-write_csv(imputedData.2, "imputedData.2.csv")
-imputedData.3 <- complete(imputed,3)
-write_csv(imputedData.3, "imputedData.3.csv")
-imputedData.4 <- complete(imputed,4)
-write_csv(imputedData.4, "imputedData.4.csv")
-imputedData.5 <- complete(imputed,5)
-write_csv(imputedData.5, "imputedData.5.csv")
-imputedData.6 <- complete(imputed,6)
-write_csv(imputedData.6, "imputedData.6.csv")
-imputedData.7 <- complete(imputed,7)
-write_csv(imputedData.7, "imputedData.7.csv")
-imputedData.8 <- complete(imputed,8)
-write_csv(imputedData.8, "imputedData.8.csv")
-imputedData.9 <- complete(imputed,9)
-write_csv(imputedData.9, "imputedData.9.csv")
+save(all_imputed, file = "all_imputed.RData")
+all_imputed_long <- complete(imputed, "long")
+write_csv(all_imputed_long, "all_imputed_long.csv")
+imputedData.01 <- complete(imputed,1)
+write_csv(imputedData.01, "imputedData.01.csv")
+imputedData.02 <- complete(imputed,2)
+write_csv(imputedData.02, "imputedData.02.csv")
+imputedData.03 <- complete(imputed,3)
+write_csv(imputedData.03, "imputedData.03.csv")
+imputedData.04 <- complete(imputed,4)
+write_csv(imputedData.04, "imputedData.04.csv")
+imputedData.05 <- complete(imputed,5)
+write_csv(imputedData.05, "imputedData.05.csv")
+imputedData.06 <- complete(imputed,6)
+write_csv(imputedData.06, "imputedData.06.csv")
+imputedData.07 <- complete(imputed,7)
+write_csv(imputedData.07, "imputedData.07.csv")
+imputedData.08 <- complete(imputed,8)
+write_csv(imputedData.08, "imputedData.08.csv")
+imputedData.09 <- complete(imputed,9)
+write_csv(imputedData.09, "imputedData.09.csv")
 imputedData.10 <- complete(imputed,10)
 write_csv(imputedData.10, "imputedData.10.csv")
 imputedData.11 <- complete(imputed,11)
@@ -187,15 +190,15 @@ densityplot(imputed)
 # Compare range of values imputed for BMI and waist
 # BMI
 summary(impute_full$bmi)
-summary(c(imputedData.1$bmi, imputedData.2$bmi, imputedData.3$bmi, imputedData.4$bmi, 
-          imputedData.5$bmi, imputedData.6$bmi, imputedData.7$bmi, imputedData.8$bmi, 
-          imputedData.9$bmi, imputedData.10$bmi, imputedData.11$bmi, imputedData.12$bmi))
+summary(c(imputedData.01$bmi, imputedData.02$bmi, imputedData.03$bmi, imputedData.04$bmi, 
+          imputedData.05$bmi, imputedData.06$bmi, imputedData.07$bmi, imputedData.08$bmi, 
+          imputedData.09$bmi, imputedData.10$bmi, imputedData.11$bmi, imputedData.12$bmi))
 # Range is kept and distribution looks very similar
 #Waist
 summary(impute_full$waist)
-summary(c(imputedData.1$waist, imputedData.2$waist, imputedData.3$waist, imputedData.4$waist, 
-          imputedData.5$waist, imputedData.6$waist, imputedData.7$waist, imputedData.8$waist, 
-          imputedData.9$waist, imputedData.10$waist, imputedData.11$waist, imputedData.12$waist))
+summary(c(imputedData.01$waist, imputedData.02$waist, imputedData.03$waist, imputedData.04$waist, 
+          imputedData.05$waist, imputedData.06$waist, imputedData.07$waist, imputedData.08$waist, 
+          imputedData.09$waist, imputedData.10$waist, imputedData.11$waist, imputedData.12$waist))
 # Range is kept and distribution looks very similar
 
 # Try strip plots
@@ -213,8 +216,9 @@ summary(glm.unimputed)
 # Relatively similar results.
 
 # Check for missing data in the imputed datasets
-sapply(c(imputedData.1, imputedData.2, imputedData.3, imputedData.4, imputedData.5, imputedData.6, 
-         imputedData.7, imputedData.8, imputedData.9, imputedData.10, imputedData.11, imputedData.12), 
+sapply(c(imputedData.01, imputedData.02, imputedData.03, imputedData.04, imputedData.05, 
+         imputedData.06, imputedData.07, imputedData.08, imputedData.09, imputedData.10, 
+         imputedData.11, imputedData.12), 
        function(x) sum(is.na(x)))
 
 ##########
