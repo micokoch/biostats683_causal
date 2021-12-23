@@ -175,8 +175,8 @@ summary(imputed.full)
 # Write to csv to avoid running mice each time
 write_csv(imputed.full, "imputed.full.csv")
 # Run a logistic regression with fully imputed dataset
-glm.imputed.full = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
-                      bmi + waist + factor(depressed),
+glm.imputed.full = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + 
+                         factor(marital) + bmi + waist + factor(depressed),
                     family = binomial(link = "logit"), data = imputed.full)
 summary(glm.imputed.full)
 exp(cbind(OR = coef(glm.imputed.full), confint(glm.imputed.full)))
@@ -259,17 +259,22 @@ iptw.st.rd <- sum(wt1*ObsData$targetslp) / sum(wt1) - sum(wt0*ObsData$targetslp)
 iptw.st.rd
 # RD = 0.04489871
 # Odds ratio
-iptw.st.or <- ((sum(wt1.trunc*ObsData$targetslp)/sum(wt1))/((sum(1-wt1.trunc*ObsData$targetslp))/sum(wt1))) /
-                 ((sum(wt0.trunc*ObsData$targetslp)/sum(wt0))/((sum(1-wt0.trunc*ObsData$targetslp))/sum(wt0)))
+iptw.st.or <- ((sum(wt1.trunc*ObsData$targetslp)/sum(wt1))/
+                 ((sum(1-wt1.trunc*ObsData$targetslp))/sum(wt1))) /
+                 ((sum(wt0.trunc*ObsData$targetslp)/sum(wt0))/
+                    ((sum(1-wt0.trunc*ObsData$targetslp))/sum(wt0)))
 iptw.st.or
 # OR = 1.338776
 
 # Unadjusted Estimator
-unadj.rd <- mean(ObsData[ObsData$targetex==1, 'targetslp']) - mean(ObsData[ObsData$targetex==0, 'targetslp'])
+unadj.rd <- mean(ObsData[ObsData$targetex==1, 'targetslp']) - 
+  mean(ObsData[ObsData$targetex==0, 'targetslp'])
 unadj.rd
 # RD = 0.06152721
-unadj.or <- (mean(ObsData[ObsData$targetex==1, 'targetslp'])/(1-mean(ObsData[ObsData$targetex==1, 'targetslp']))) /
-              (mean(ObsData[ObsData$targetex==0, 'targetslp'])/(1-(mean(ObsData[ObsData$targetex==0, 'targetslp']))))
+unadj.or <- (mean(ObsData[ObsData$targetex==1, 'targetslp'])/
+               (1-mean(ObsData[ObsData$targetex==1, 'targetslp']))) /
+              (mean(ObsData[ObsData$targetex==0, 'targetslp'])/
+                 (1-(mean(ObsData[ObsData$targetex==0, 'targetslp']))))
 unadj.or
 # OR = 1.445504
 
@@ -346,8 +351,10 @@ SL.library <- c("SL.mean", "SL.glm", "SL.step.interaction", "SL.earth", "SL.glmn
 #   H.1W <- 1/probA1.givenW
 #   H.0W <- -1/probA0.givenW
 #   # Clever covariate for odds ratio
-#   H.AW.or <- ((as.numeric(ObsData$A==1)/probA1.givenW)/(1-(as.numeric(ObsData$A==1)/probA1.givenW))) / 
-#     ((as.numeric(ObsData$A==0)/probA0.givenW)/(1-(as.numeric(ObsData$A==0)/probA0.givenW)))
+#   H.AW.or <- ((as.numeric(ObsData$A==1)/probA1.givenW)/
+# (1-(as.numeric(ObsData$A==1)/probA1.givenW))) / 
+#     ((as.numeric(ObsData$A==0)/probA0.givenW)/
+# (1-(as.numeric(ObsData$A==0)/probA0.givenW)))
 #   # IPTW estimator risk difference
 #   PsiHat.IPTW.rd <- mean(H.AW*ObsData$Y)
 #   # IPTW estimator odds ratio
@@ -397,7 +404,8 @@ summary(ltmle.SL)
 
 X <- subset(ObsData, select = -Y)
 
-SL.out <- SuperLearner(Y=ObsData$Y, X=X, SL.library=SL.library, family='binomial', cvControl=list(V=5))
+SL.out <- SuperLearner(Y=ObsData$Y, X=X, SL.library=SL.library, 
+                       family='binomial', cvControl=list(V=5))
 SL.out
 CV.SL.out<- CV.SuperLearner(Y=ObsData$Y, X=X, SL.library=SL.library, family='binomial', 
                             cvControl=list(V=5), innerCvControl=list(list(V=5)))

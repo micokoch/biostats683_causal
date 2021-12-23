@@ -159,13 +159,13 @@ or.table %>% gt()
 ## Super Learning
 summary(ObsData)
 # 3,406 obs of 9 variables, no NAs
-# Specify libararies
+# Specify libraries
 SL.library <- c("SL.mean", "SL.glm", "SL.step.interaction", "SL.earth", "SL.glmnet", "SL.ranger")
 # Create a function to handcode TMLE with Super Learner
 run.tmle <- function(ObsData, SL.library){
   ## Simple substitution estimator
   # dataframe X with baseline covariates and exposure
-  X <-subset(ObsData, select = c(A, age, raceeth, educ, marital, bmi, waist, depressed))
+  X <- subset(ObsData, select = c(A, age, raceeth, educ, marital, bmi, waist, depressed))
   # set the exposure=1 in X1 and the exposure=0 in X0
   X1 <- X0 <- X
   X1$A <- 1

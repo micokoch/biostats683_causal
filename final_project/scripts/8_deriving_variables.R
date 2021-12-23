@@ -95,7 +95,11 @@ organize.slpex <- function(x){
   e <- d %>% relocate(.imp)
   return(e)
 }
-organize.slpex(imputed.04)
+
+factor.exp.out <- function(x){
+  x <- x %>% mutate(targetex = as.factor(targetex), targetslp = as.factor(targetslp))
+  return(x)
+}
 
 binary.logistic <- function(x){
   glm.slpex = glm(targetslp ~ targetex, family = binomial(link = "logit"), data = x)
@@ -118,6 +122,25 @@ binary.logistic <- function(x){
   slpex.results.bin <- gComp(data = x, Y = "targetslp", X = "targetex", 
                              outcome.type = "binary", R = 200)
   print(slpex.results.bin)
+}
+
+bin.logit.mi<- function(x){
+  theta_i <- c()
+  var_win <- c()
+  for(i in 1:12){
+    temp <- x %>% filter(.imp == i)
+    glm.slpex.bin.mi <- glm(targetslp ~ targetex, family = binomial(link = "logit"), data = temp, 
+                          weights = NULL, subset = inAnalysis == 1, na.action = na.exclude)
+    sum.glm.slpex.bin.mi <- summary(glm.slpex.bin.mi)
+    theta_i <- append(theta_i, sum.glm.slpex.bin.mi$coefficients[[2]])
+    var_win <- append(var_win, sum.glm.slpex.bin.mi$coefficients[[4]]^2)
+  }
+  theta_i_avg <- mean(theta_i)
+  var_btwn <- (theta_i - theta_i_avg)^2
+  var_btwn_avg <- sum(var_btwn)/11
+  var_win_avg <- mean(var_win)
+  var_total <- var_win_avg + var_btwn_avg + var_btwn_avg/12
+  print(c(coef = theta_i_avg, standerr = sqrt(var_total), OR = exp(theta_i_avg)))
 }
 
 full.logistic <- function(x){
@@ -312,7 +335,7 @@ imputed.10.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin 
 
 
 ### Look at combined imputed dataset
-# First combine imputed datasets into a long one
+# First combine unimputed and imputed datasets into a long one
 load("imputed.Rdata")
 long.imputed.comp <- bind_rows(unimputed.00.comp, imputed.01.comp, imputed.02.comp, imputed.03.comp, 
                                imputed.04.comp, imputed.05.comp, imputed.06.comp, imputed.07.comp,
@@ -321,26 +344,46 @@ long.imputed.comp <- bind_rows(unimputed.00.comp, imputed.01.comp, imputed.02.co
 # 139,607 obs of 46 variables - 13 sets of 10,739 obs - correct!
 write_csv(long.imputed.comp, "long.imputed.comp.csv")
 
-# Make dataset into a mids object
+# Second, make a long imputed dataset (without unimputed)
+long.only_imputed.comp <- bind_rows(imputed.01.comp, imputed.02.comp, imputed.03.comp, 
+                               imputed.04.comp, imputed.05.comp, imputed.06.comp, imputed.07.comp,
+                               imputed.08.comp, imputed.09.comp, imputed.10.comp, imputed.11.comp, 
+                               imputed.12.comp)
+# 128,868 obs of 46 variables - 13 sets of 10,739 obs - correct!
+write_csv(long.only_imputed.comp, "long.only_imputed.comp.csv")
+
+# Make datasets into mids objects - full, long
 imputed_processed <- as.mids(long.imputed.comp, where = NULL, .imp = ".imp", .id = ".id")
+save(imputed_processed, file = "imputed_processed.Rdata")
+# Without imputed - can't save as mids object
 
 
-bin.fit <- with(imputed_processed, glm(targetslp ~ targetex, family = binomial(link = "logit")))
+# Run pooled logistic regressions - without weights - doesn't seem to work
+bin.fit <- with(imputed_processed, glm(targetslp ~ targetex, family = binomial(link = "logit"), 
+                                       subset = inAnalysis == 1, na.action = na.exclude))
+pool(bin.fit)
 summary(pool(bin.fit))
+summary(pool(bin.fit), conf.int = TRUE, exponentiate = TRUE)
+
+bin.logit.mi(long.imputed.comp)
+### IT WORKS! My manual use of Rubin's Rules calculated correct estimate and standard error
 
 full.fit <- with(imputed_processed, glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + 
                                           factor(marital) + factor(household) + factor(income) + 
                                           factor(snoring) + factor(apnea) + bmi + waist + 
                                           factor(smoke) + factor(alcohol) + factor(depressed), 
-                                        family = binomial(link = "logit")))
+                                        family = binomial(link = "logit"), 
+                 subset = inAnalysis == 1, na.action = na.exclude))
+pool(full.fit)
 summary(pool(full.fit))
+summary(pool(full.fit), conf.int = TRUE, exponentiate = TRUE)
 
 final.fit <- with(imputed_processed, glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + 
                                            factor(marital) + bmi + waist + factor(depressed), 
-                                         family = binomial(link = "logit")))
+                                         family = binomial(link = "logit"), 
+                                         subset = inAnalysis == 1, na.action = na.exclude))
+pool(final.fit)
 summary(pool(final.fit))
+summary(pool(final.fit), conf.int = TRUE, exponentiate = TRUE)
 
-glm.slpexcov2 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
-                      bmi + waist + factor(depressed),
-                    family = binomial(link = "logit"), data = x)
-print(summary(glm.slpexcov2))
+
