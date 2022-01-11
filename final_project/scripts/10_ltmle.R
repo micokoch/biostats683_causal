@@ -144,11 +144,11 @@ run.tmle <- function(ObsData, SL.library){
 
 ##### Read in and format datasets
 ## Read in dataset
-unimputed.00.comp <- read_csv("unimputed.00.comp.csv") 
+unimputed.00.comp <- read_csv("unimputed.00.comp.csv")
 unimputed.incomp <- unimputed.00.comp %>% 
   format.slpex.data() %>% 
   factor.exp.out() %>% 
-  select(A, age, raceeth, educ, marital, bmi, waist, depressed, Y) %>% 
+  select(age, raceeth, educ, marital, bmi, waist, depressed, A, Y) %>% 
   na.omit
 unimputedwts <- unimputed.00.comp %>% 
   format.slpex.data() %>% 
@@ -161,7 +161,7 @@ imputed.07.comp <- read_csv("imputed.07.comp.csv")
 imputed7incomp <- imputed.07.comp %>% 
   format.slpex.data() %>% 
   factor.exp.out() %>% 
-  select(A, age, raceeth, educ, marital, bmi, waist, depressed, Y)
+  select(age, raceeth, educ, marital, bmi, waist, depressed, A, Y)
 imputed7wts <- imputed.07.comp %>% 
   format.slpex.data() %>% 
   factor.exp.out() %>% 
@@ -173,33 +173,36 @@ long.imputed.comp <- read_csv("long.imputed.comp.csv") %>%
   format.slpex.data() %>% 
   factor.exp.out()
 
-### Run TMLE
+### Run TMLE - VERY Long (load objects)
 ## Unimputed
-unimp_slpex_run_tmle <- run.tmle(unimputed.incomp, SL.library)
-save(unimp_slpex_run_tmle, file = "unimp_slpex_run_tmle.RData")
+# unimp_slpex_run_tmle <- run.tmle(unimputed.incomp, SL.library)
+# save(unimp_slpex_run_tmle, file = "unimp_slpex_run_tmle.RData")
+load("unimp_slpex_run_tmle.RData")
 unimp_est_slpex_run_tmle <- unimp_slpex_run_tmle$estimates
 unimp_est_slpex_run_tmle
-save(unimp_est_slpex_run_tmle, file = "unimp_est_slpex_run_tmle.RData")
+# save(unimp_est_slpex_run_tmle, file = "unimp_est_slpex_run_tmle.RData")
 unimp_est_slpex_run_tmle_gt <- unimp_est_slpex_run_tmle %>% gt()
-save(unimp_est_slpex_run_tmle_gt, file = "unimp_est_run_tmle_gt.RData")
+# save(unimp_est_slpex_run_tmle_gt, file = "unimp_est_run_tmle_gt.RData")
 pander(unimp_est_slpex_run_tmle)
 
 ## Imputed #7
-imp7_slpex_run_tmle <- run.tmle(imputed7incomp, SL.library)
-save(imp7_slpex_run_tmle, file = "imp7_slpex_run_tmle.RData")
+# imp7_slpex_run_tmle <- run.tmle(imputed7incomp, SL.library)
+# save(imp7_slpex_run_tmle, file = "imp7_slpex_run_tmle.RData")
+load("imp7_slpex_run_tmle.RData")
 imp7_est_slpex_run_tmle <- imp7_slpex_run_tmle$estimates
 imp7_est_slpex_run_tmle
-save(imp7_est_slpex_run_tmle, file = "imp7_est_slpex_run_tmle.RData")
+# save(imp7_est_slpex_run_tmle, file = "imp7_est_slpex_run_tmle.RData")
 imp7_est_slpex_run_tmle_gt <- imp7_est_slpex_run_tmle %>% gt()
-save(imp7_est_slpex_run_tmle_gt, file = "imp7_est_run_tmle_gt.RData")
+# save(imp7_est_slpex_run_tmle_gt, file = "imp7_est_run_tmle_gt.RData")
 pander(imp7_est_slpex_run_tmle)
 
 
 #############
-Lnodes <- c("age", "raceeth", "educ", "marital", "bmi", "waist", "depressed")
-ltmle.SL <- ltmle(data=unimputed.incomp, Anodes='A', Lnodes=Lnodes, Ynodes='Y', abar=list(1,0), 
+### ltmle
+ltmle.unimp_incomp.SL <- ltmle(data=unimputed.incomp, Anodes='A', Ynodes='Y', abar=list(1, 0), 
                   SL.library=SL.library, estimate.time = T, observation.weights = unimputedwts)
-summary(ltmle.SL)
+save(ltmle.unimp_incomp.SL, file = "ltmle.unimp_incomp.SL.RData")
+summary(ltmle.unimp_incomp.SL)
 
 # Lnodes <- c("CD4_1", "CD4_2")
 # Ynodes <- grep("^Y", names(sampleDataForLtmleMSM$data))
