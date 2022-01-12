@@ -59,7 +59,11 @@ format.slpex.data <- function(x){
       WTINT2YR = as.numeric(WTINT2YR),
       WTMEC2YR = as.numeric(WTMEC2YR),
       SDMVPSU = as.integer(SDMVPSU),
-      SDMVSTRA = as.integer(SDMVSTRA)
+      SDMVSTRA = as.integer(SDMVSTRA), 
+      WTINT4YR = as.numeric(WTINT4YR),
+      WTMEC4YR = as.numeric(WTMEC4YR),
+      combmvu = as.factor(combmvu),
+      normwts = as.numeric(normwts)
     )
   return(x)
 }
@@ -76,7 +80,7 @@ factor.exp.out <- function(x){
 bin.logit.survey.single <- function(x){
   # Based on: https://stackoverflow.com/questions/64474714/run-svymean-on-all-variables
   slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, 
-                            weights = ~WTMEC2YR, nest = TRUE, data = x)
+                            weights = ~WTMEC4YR, nest = TRUE, data = x)
   slpex.design.sub <- subset(slpex.design, inAnalysis == 1) # design subset
   # General prevalence estimates for age and BMI
   mean_age_svy <- svymean(~age, slpex.design.sub, na.rm = TRUE) # mean age
@@ -113,7 +117,7 @@ bin.logit.survey.mi <- function(x){
   for(i in 1:12){ 
     temp <- x %>% filter(.imp == i) # Subset for every imputation
     # Use survey design package
-    slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, weights = ~WTMEC2YR, nest = TRUE, data    = temp)
+    slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, weights = ~WTMEC4YR, nest = TRUE, data    = temp)
     slpex.design.sub <- subset(slpex.design, inAnalysis==1) # design subset
     # General prevalence estimates for age and BMI
     mean_age_sub <- svymean(~age, slpex.design.sub, na.rm = TRUE) # mean age subset
@@ -156,7 +160,7 @@ bin.logit.survey.mi <- function(x){
 full.logit.survey.single <- function(x){
   # Based on: https://stackoverflow.com/questions/64474714/run-svymean-on-all-variables
   slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, 
-                            weights = ~WTMEC2YR, nest = TRUE, data = x)
+                            weights = ~WTMEC4YR, nest = TRUE, data = x)
   slpex.design.sub <- subset(slpex.design, inAnalysis == 1) # design subset
   # General prevalence estimates for age and BMI
   mean_age_svy <- svymean(~age, slpex.design.sub, na.rm = TRUE) # mean age
@@ -195,7 +199,7 @@ full.logit.survey.mi <- function(x){
   for(i in 1:12){ 
     temp <- x %>% filter(.imp == i) # Subset for every imputation
     # Use survey design package
-    slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, weights = ~WTMEC2YR, nest = TRUE, data    = temp)
+    slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, weights = ~WTMEC4YR, nest = TRUE, data    = temp)
     slpex.design.sub <- subset(slpex.design, inAnalysis==1) # design subset
     # General prevalence estimates for age and BMI
     mean_age_sub <- svymean(~age, slpex.design.sub, na.rm = TRUE) # mean age subset
@@ -240,7 +244,7 @@ full.logit.survey.mi <- function(x){
 final.logit.survey.single <- function(x){
   # Based on: https://stackoverflow.com/questions/64474714/run-svymean-on-all-variables
   slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, 
-                            weights = ~WTMEC2YR, nest = TRUE, data = x)
+                            weights = ~WTMEC4YR, nest = TRUE, data = x)
   slpex.design.sub <- subset(slpex.design, inAnalysis == 1) # design subset
   # General prevalence estimates for age and BMI
   mean_age_svy <- svymean(~age, slpex.design.sub, na.rm = TRUE) # mean age
@@ -278,7 +282,7 @@ final.logit.survey.mi <- function(x){
   for(i in 1:12){ 
     temp <- x %>% filter(.imp == i) # Subset for every imputation
     # Use survey design package
-    slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, weights = ~WTMEC2YR, nest = TRUE, data    = temp)
+    slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, weights = ~WTMEC4YR, nest = TRUE, data    = temp)
     slpex.design.sub <- subset(slpex.design, inAnalysis==1) # design subset
     # General prevalence estimates for age and BMI
     mean_age_sub <- svymean(~age, slpex.design.sub, na.rm = TRUE) # mean age subset

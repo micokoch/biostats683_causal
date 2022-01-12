@@ -4,6 +4,7 @@
 library(tidyverse)
 library(SuperLearner)
 library(ltmle)
+library(riskCommunicator)
 library(gt)
 library(pander)
 
@@ -13,7 +14,7 @@ getwd()
 set.seed(252)
 
 # Specify SuperLearner libraries
-SL.library <- c("SL.mean", "SL.glm", "SL.step.interaction")#, "SL.earth", "SL.glmnet", "SL.ranger")
+SL.library <- c("SL.glm")#, "SL.mean", "SL.step.interaction", "SL.earth", "SL.glmnet", "SL.ranger")
 
 ## Functions
 # Formatting the dataset appropriately
@@ -65,14 +66,24 @@ format.slpex.data <- function(x){
       WTINT2YR = as.numeric(WTINT2YR),
       WTMEC2YR = as.numeric(WTMEC2YR),
       SDMVPSU = as.integer(SDMVPSU),
-      SDMVSTRA = as.integer(SDMVSTRA)
+      SDMVSTRA = as.integer(SDMVSTRA), 
+      WTINT4YR = as.numeric(WTINT4YR),
+      WTMEC4YR = as.numeric(WTMEC4YR),
+      combmvu = as.factor(combmvu),
+      normwts = as.numeric(normwts)
     )
+  return(x)
+}
+
+# Function to make exposure and outcome as numeric
+integer.exp.out <- function(x){
+  x <- x %>% mutate(A = as.integer(targetex), Y = as.integer(targetslp))
   return(x)
 }
 
 # Function to make exposure and outcome as factors
 factor.exp.out <- function(x){
-  x <- x %>% mutate(A = as.numeric(targetex), Y = as.numeric(targetslp))
+  x <- x %>% mutate(A = as.factor(A), Y = as.factor(Y))
   return(x)
 }
 
@@ -147,62 +158,94 @@ run.tmle <- function(ObsData, SL.library){
 unimputed.00.comp <- read_csv("unimputed.00.comp.csv")
 unimputed.incomp <- unimputed.00.comp %>% 
   format.slpex.data() %>% 
-  factor.exp.out() %>% 
+  integer.exp.out() %>% 
+  filter(inAnalysis == 1) %>% 
   select(age, raceeth, educ, marital, bmi, waist, depressed, A, Y) %>% 
   na.omit
-unimputedwts <- unimputed.00.comp %>% 
+wts.mvus <- unimputed.00.comp %>% 
   format.slpex.data() %>% 
-  factor.exp.out() %>% 
-  select(Y, A, age, raceeth, educ, marital, bmi, waist, depressed, WTMEC2YR) %>% 
+  integer.exp.out() %>% 
+  filter(inAnalysis == 1) %>% 
+  select(Y, A, age, raceeth, educ, marital, bmi, waist, depressed, normwts, combmvu) %>% 
   na.omit %>% 
-  select(WTMEC2YR)
-unimputedwts <- unimputedwts$WTMEC2YR
-imputed.07.comp <- read_csv("imputed.07.comp.csv") 
-imputed7incomp <- imputed.07.comp %>% 
-  format.slpex.data() %>% 
-  factor.exp.out() %>% 
-  select(age, raceeth, educ, marital, bmi, waist, depressed, A, Y)
-imputed7wts <- imputed.07.comp %>% 
-  format.slpex.data() %>% 
-  factor.exp.out() %>% 
-  select(Y, A, age, raceeth, educ, marital, bmi, waist, depressed, WTMEC2YR) %>% 
-  na.omit %>% 
-  select(WTMEC2YR)
-imputed7wts <- imputed7wts$WTMEC2YR
-long.imputed.comp <- read_csv("long.imputed.comp.csv") %>% 
-  format.slpex.data() %>% 
-  factor.exp.out()
+  select(normwts, combmvu)
+unimputedwts <- wts.mvus$normwts
+unimputedmvu <- wts.mvus$combmvu
+# imputed.07.comp <- read_csv("imputed.07.comp.csv") 
+# imputed7incomp <- imputed.07.comp %>% 
+#   format.slpex.data() %>% 
+#   integer.exp.out() %>% 
+#   filter(inAnalysis == 1) %>% 
+#   select(age, raceeth, educ, marital, bmi, waist, depressed, A, Y)
+# imputed7wts <- imputed.07.comp %>% 
+#   format.slpex.data() %>% 
+#   integer.exp.out() %>% 
+#   filter(inAnalysis == 1) %>% 
+#   select(Y, A, age, raceeth, educ, marital, bmi, waist, depressed, normwts) %>% 
+#   na.omit %>% 
+#   select(normwts)
+# imputed7wts <- imputed7wts$normwts
+# long.imputed.comp <- read_csv("long.imputed.comp.csv") %>% 
+#   format.slpex.data() %>% 
+#   integer.exp.out() %>% 
+#   filter(inAnalysis == 1)
 
-### Run TMLE - VERY Long (load objects)
-## Unimputed
-# unimp_slpex_run_tmle <- run.tmle(unimputed.incomp, SL.library)
-# save(unimp_slpex_run_tmle, file = "unimp_slpex_run_tmle.RData")
-load("unimp_slpex_run_tmle.RData")
-unimp_est_slpex_run_tmle <- unimp_slpex_run_tmle$estimates
-unimp_est_slpex_run_tmle
-# save(unimp_est_slpex_run_tmle, file = "unimp_est_slpex_run_tmle.RData")
-unimp_est_slpex_run_tmle_gt <- unimp_est_slpex_run_tmle %>% gt()
-# save(unimp_est_slpex_run_tmle_gt, file = "unimp_est_run_tmle_gt.RData")
-pander(unimp_est_slpex_run_tmle)
-
-## Imputed #7
-# imp7_slpex_run_tmle <- run.tmle(imputed7incomp, SL.library)
-# save(imp7_slpex_run_tmle, file = "imp7_slpex_run_tmle.RData")
-load("imp7_slpex_run_tmle.RData")
-imp7_est_slpex_run_tmle <- imp7_slpex_run_tmle$estimates
-imp7_est_slpex_run_tmle
-# save(imp7_est_slpex_run_tmle, file = "imp7_est_slpex_run_tmle.RData")
-imp7_est_slpex_run_tmle_gt <- imp7_est_slpex_run_tmle %>% gt()
-# save(imp7_est_slpex_run_tmle_gt, file = "imp7_est_run_tmle_gt.RData")
-pander(imp7_est_slpex_run_tmle)
+# ### Run TMLE - VERY Long (load objects)
+# ### INCORRECT - forgot to only include inAnalysis for calculations
+# ## Unimputed
+# # unimp_slpex_run_tmle <- run.tmle(unimputed.incomp, SL.library)
+# # save(unimp_slpex_run_tmle, file = "unimp_slpex_run_tmle.RData")
+# load("unimp_slpex_run_tmle.RData")
+# unimp_est_slpex_run_tmle <- unimp_slpex_run_tmle$estimates
+# unimp_est_slpex_run_tmle
+# # save(unimp_est_slpex_run_tmle, file = "unimp_est_slpex_run_tmle.RData")
+# unimp_est_slpex_run_tmle_gt <- unimp_est_slpex_run_tmle %>% gt()
+# # save(unimp_est_slpex_run_tmle_gt, file = "unimp_est_run_tmle_gt.RData")
+# pander(unimp_est_slpex_run_tmle)
+# 
+# ## Imputed #7
+# # imp7_slpex_run_tmle <- run.tmle(imputed7incomp, SL.library)
+# # save(imp7_slpex_run_tmle, file = "imp7_slpex_run_tmle.RData")
+# load("imp7_slpex_run_tmle.RData")
+# imp7_est_slpex_run_tmle <- imp7_slpex_run_tmle$estimates
+# imp7_est_slpex_run_tmle
+# # save(imp7_est_slpex_run_tmle, file = "imp7_est_slpex_run_tmle.RData")
+# imp7_est_slpex_run_tmle_gt <- imp7_est_slpex_run_tmle %>% gt()
+# # save(imp7_est_slpex_run_tmle_gt, file = "imp7_est_run_tmle_gt.RData")
+# pander(imp7_est_slpex_run_tmle)
 
 
 #############
 ### ltmle
+# First attempt with gcomp (instead of tmle) and no weights or ids
+ltmle.gcomp.unimp_incomp.SL <- ltmle(data=unimputed.incomp, Anodes='A', Ynodes='Y', abar=list(1, 0), 
+                  SL.library=SL.library, estimate.time = T, gcomp = TRUE)
+                  # observation.weights = unimputedwts, id = unimputedmvu)
+save(ltmle.gcomp.unimp_incomp.SL, file = "ltmle.gcomp.unimp_incomp.SL.RData")
+summary(ltmle.gcomp.unimp_incomp.SL)
+
+# Compare results with standard GLM
+unimputed.incomp.2 <- factor.exp.out(unimputed.incomp)
+glm.unimputed.incomp = glm(Y ~ A + age + raceeth + educ + marital + 
+                      bmi + waist + depressed,
+                    family = binomial(link = "logit"), data = unimputed.incomp.2)
+summary(glm.unimputed.incomp)
+exp(cbind(OR = coef(glm.unimputed.incomp), confint(glm.unimputed.incomp)))
+# Try Risk Communicator results
+gcomp.unimputed.incomp <- gComp(data = unimputed.incomp.2, Y = "Y", X = "A", 
+                            Z = c("age", "raceeth", "educ", "marital", "bmi", "waist", 
+                                  "depressed"), outcome.type = "binary", R = 200)
+gcomp.unimputed.incomp
+
+## Even using gcomp with ltmle, the estimates are close, but slightly smaller and CI slightly larger
+
+# ltmle
 ltmle.unimp_incomp.SL <- ltmle(data=unimputed.incomp, Anodes='A', Ynodes='Y', abar=list(1, 0), 
-                  SL.library=SL.library, estimate.time = T, observation.weights = unimputedwts)
+                               SL.library=SL.library, estimate.time = T,
+                               observation.weights = unimputedwts, id = unimputedmvu)
 save(ltmle.unimp_incomp.SL, file = "ltmle.unimp_incomp.SL.RData")
 summary(ltmle.unimp_incomp.SL)
+
 
 # Lnodes <- c("CD4_1", "CD4_2")
 # Ynodes <- grep("^Y", names(sampleDataForLtmleMSM$data))

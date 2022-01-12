@@ -208,7 +208,10 @@ clean_exslp_1517 <- read_csv("clean_exslp_1517.csv")
 # Create dataset with SEQN and weights
 seqn.wts <- clean_exslp_1517 %>% select(-1, -usyears) %>% 
   select(SEQN, WTINT2YR, WTMEC2YR, SDMVPSU, SDMVSTRA) %>% 
-  mutate(.id = row_number(), .before = "SEQN")
+  mutate(.id = row_number(), .before = "SEQN") %>% 
+  mutate(WTINT4YR = 0.5 * WTINT2YR, WTMEC4YR = 0.5 * WTMEC2YR) %>% 
+  mutate(combmvu = SDMVSTRA * 2 + SDMVPSU) %>% 
+  mutate(normwts = (WTINT4YR * (length(WTINT4YR)/sum(WTINT4YR))))
 write_csv(seqn.wts, "seqn.wts.csv")
 unimputed.00 <- clean_exslp_1517 %>% select(-1, -usyears) %>% 
   select(-SEQN, -WTINT2YR, -WTMEC2YR, -SDMVPSU, -SDMVSTRA)

@@ -77,5 +77,31 @@ rd = pab.1-pab.0
 rd
 # 0.04305675
 
+######
 
+slpex.design <- svydesign(id = ~SDMVPSU, strata = ~SDMVSTRA, 
+                          weights = ~WTMEC2YR, nest = TRUE, data = unimputed.00.comp)
+slpex.design.sub <- subset(slpex.design, inAnalysis == 1) # design subset
+# General prevalence estimates for age and BMI
+mean_age_svy <- svymean(~age, slpex.design.sub, na.rm = TRUE) # mean age
+mean_bmi_svy <- svymean(~bmi, slpex.design.sub, na.rm = TRUE) # mean BMI
+mean_age_bmi <- c(mean_age_svy, mean_bmi_svy)
+# Use survey GLM to calculate odds ratio estimates
+glm.slpex.sub <- svyglm(targetslp ~ targetex, family = binomial(), 
+                        data = x, design = slpex.design.sub)
+sum.glm.slpex.sub <- summary(glm.slpex.sub) # GLM summary
+# glm_objects <- c(glm.slpex.sub, sum.glm.slpex.sub) #GLM objects
+theta_i <- sum.glm.slpex.sub$coefficients[[2]] # Theta (point estimate)
+var_win <- sum.glm.slpex.sub$coefficients[[4]]^2 # Variance
+final_or_results <- c(coef = theta_i, var = var_win, standerr = sqrt(var_win), OR = exp(theta_i))
+# print(exp(cbind(OR = coef(glm.slpex.sub), confint(glm.slpex.sub))))
+# Use G-computation to calculate point estimate of risk difference
+exp <- unexp <- x
+exp$targetex <- 1
+unexp$targetex <- 0
+# Risk difference
+SS.rd <- mean(predict(glm.slpex.sub, newdata=exp, type='response')) - 
+  mean(predict(glm.slpex.sub, newdata=unexp, type='response'))
+survey.results <- c(G_comp = SS.rd, final_or_results, mean_age_bmi, 
+                    theta_i = theta_i, var_win = var_win)
 
