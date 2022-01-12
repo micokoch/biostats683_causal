@@ -388,6 +388,7 @@ run.full.survey <- function(y){
                             waist + factor(smoke) + factor(alcohol) + factor(depressed), 
                           family = binomial(), data = temp, design = slpex.design.sub)
   sum.glm.slpex.sub <- summary(glm.slpex.sub) # GLM summary
+  save(sum.glm.slpex.sub, file = 'sum.glm.slpex.sub.Rdata')
   # Use G-computation to calculate point estimate of risk difference
   exp <- unexp <- temp2
   exp$targetex <- 1
@@ -473,6 +474,11 @@ full.logit.survey.mi.boot <- function(x){
   print(final_or_results)
   return(survey.results)
 }
+
+# Do a test run only with Survey and the full model
+full.survey.results <- run.full.survey(imputed.04.comp)
+load('sum.glm.slpex.sub.Rdata')
+sum.glm.slpex.sub
 
 full.mi.results.boot <- full.logit.survey.mi.boot(long.imputed.comp)
 summary(full.mi.results.boot)
