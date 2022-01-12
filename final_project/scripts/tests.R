@@ -105,3 +105,5 @@ SS.rd <- mean(predict(glm.slpex.sub, newdata=exp, type='response')) -
 survey.results <- c(G_comp = SS.rd, final_or_results, mean_age_bmi, 
                     theta_i = theta_i, var_win = var_win)
 
+######
+

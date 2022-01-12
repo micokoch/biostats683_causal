@@ -102,15 +102,16 @@ factor.exp.out <- function(x){
 }
 
 binary.logistic <- function(x){
-  glm.slpex = glm(targetslp ~ targetex, family = binomial(link = "logit"), data = x)
+  temp2 <- x %>% filter(inAnalysis == 1)
+  glm.slpex = glm(targetslp ~ targetex, family = binomial(link = "logit"), data = temp2)
   print(summary(glm.slpex))
   print(exp(cbind(OR = coef(glm.slpex), confint(glm.slpex))))
   # ATE (risk difference - marginal effect)
   # Probability for each individual based on the model fit under targetex = 1
-  prob.1 <- x %>% mutate(targetex=1)
+  prob.1 <- temp2 %>% mutate(targetex=1)
   p1.bin <- mean(predict(glm.slpex, prob.1, type = "response"))
   # Probability for each individual based on the model fit under targetex = 0
-  prob.0 <- x %>% mutate(targetex=0)
+  prob.0 <- temp2 %>% mutate(targetex=0)
   p0.bin <- mean(predict(glm.slpex, prob.0, type = "response"))
   # Marginal probabilities
   bin.marg.prob <- (bin.marg.prob = c(p1.bin, p0.bin))
@@ -118,8 +119,8 @@ binary.logistic <- function(x){
   risk_diff.bin <- p1.bin - p0.bin
   print(risk_diff.bin)
   # Try Risk Communicator results
-  x <- x %>% mutate(targetex = as.factor(targetex))
-  slpex.results.bin <- gComp(data = x, Y = "targetslp", X = "targetex", 
+  temp2 <- temp2 %>% mutate(targetex = as.factor(targetex))
+  slpex.results.bin <- gComp(data = temp2, Y = "targetslp", X = "targetex", 
                              outcome.type = "binary", R = 200)
   print(slpex.results.bin)
 }
@@ -129,6 +130,7 @@ bin.logit.mi<- function(x){
   var_win <- c()
   for(i in 1:12){
     temp <- x %>% filter(.imp == i)
+    temp2 <- temp %>% filter(inAnalysis == 1)
     glm.slpex.bin.mi <- glm(targetslp ~ targetex, family = binomial(link = "logit"), data = temp, 
                           weights = NULL, subset = inAnalysis == 1, na.action = na.exclude)
     sum.glm.slpex.bin.mi <- summary(glm.slpex.bin.mi)
@@ -143,19 +145,47 @@ bin.logit.mi<- function(x){
   print(c(coef = theta_i_avg, standerr = sqrt(var_total), OR = exp(theta_i_avg)))
 }
 
+bin.logit.mi.rc <- function(x){
+  theta_i <- c()
+  var_win <- c()
+  for(i in 1:12){
+    temp <- x %>% filter(.imp == i)
+    temp2 <- temp %>% filter(inAnalysis == 1) %>% 
+      mutate(targetex = as.factor(targetex)) %>% 
+      na.exclude()
+    slpex.results.bin <- gComp(data = temp2, Y = "targetslp", X = "targetex", 
+                               outcome.type = "binary", R = 200)
+    theta_i <- append(theta_i, slpex.results.bin$results.df$Estimate[1])
+    std.err.ci <- ((slpex.results.bin[["results.df"]][["97.5% CL"]][1] - 
+                      slpex.results.bin[["results.df"]][["2.5% CL"]][1]) / 
+                     (qnorm(0.975)*2))
+    var_win <- append(var_win, std.err.ci^2)
+  }
+  theta_i_avg <- mean(theta_i)
+  var_btwn <- (theta_i - theta_i_avg)^2
+  var_btwn_avg <- sum(var_btwn)/11
+  var_win_avg <- mean(var_win)
+  var_total <- var_win_avg + var_btwn_avg + var_btwn_avg/12
+  std.err.pool <- sqrt(var_total)
+  ci_low = (theta_i_avg - (qnorm(0.975) * std.err.pool))
+  ci_high = (theta_i_avg + (qnorm(0.975) * std.err.pool))
+  print(c(coef = theta_i_avg, standerr = std.err.pool, ci_low = ci_low, ci_high = ci_high))
+}
+
 full.logistic <- function(x){
+  temp2 <- x %>% filter(inAnalysis == 1)
   glm.slpexcov = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
                        factor(household) + factor(income) + factor(snoring) + factor(apnea) + bmi + 
                        waist + factor(smoke) + factor(alcohol) + factor(depressed),
-                     family = binomial(link = "logit"), data = x)
+                     family = binomial(link = "logit"), data = temp2)
   print(summary(glm.slpexcov))
   print(exp(cbind(OR = coef(glm.slpexcov), confint(glm.slpexcov))))
   # ATE (risk difference - marginal effect)
   # Probability for each individual based on the model fit under targetex = 1
-  prob.1 <- x %>% mutate(targetex=1)
+  prob.1 <- temp2 %>% mutate(targetex=1)
   p1.full <- mean(predict(glm.slpexcov, prob.1, type = "response"), na.rm = T)
   # Probability for each individual based on the model fit under targetex = 0
-  prob.0 <- x %>% mutate(targetex=0)
+  prob.0 <- temp2 %>% mutate(targetex=0)
   p0.full <- mean(predict(glm.slpexcov, prob.0, type = "response"), na.rm = T)
   # Marginal probabilities
   full.marg.prob <- (full.marg.prob = c(p1.full, p0.full))
@@ -163,8 +193,8 @@ full.logistic <- function(x){
   risk_diff.full <- p1.full - p0.full
   print(risk_diff.full)
   # Try Risk Communicator results
-  x <- x %>% mutate(targetex = as.factor(targetex))
-  slpex.results.full <- gComp(data = x, Y = "targetslp", X = "targetex", 
+  temp2 <- temp2 %>% mutate(targetex = as.factor(targetex))
+  slpex.results.full <- gComp(data = temp2, Y = "targetslp", X = "targetex", 
                              Z = c("age", "raceeth", "educ", "marital", "household", 
                                    "income", "snoring", "apnea", "bmi", "waist", "smoke", 
                                    "alcohol", "depressed"), outcome.type = "binary", R = 200)
@@ -174,18 +204,71 @@ full.logistic <- function(x){
   print(risk_diff.full)
 }
 
+full.logit.mi<- function(x){
+  theta_i <- c()
+  var_win <- c()
+  for(i in 1:12){
+    temp <- x %>% filter(.imp == i)
+    temp2 <- temp %>% filter(inAnalysis == 1)
+    glm.slpex.full.mi = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+                              factor(household) + factor(income) + factor(snoring) + factor(apnea) + bmi + 
+                              waist + factor(smoke) + factor(alcohol) + factor(depressed), 
+                            family = binomial(link = "logit"), data = temp, 
+                            weights = NULL, subset = inAnalysis == 1, na.action = na.exclude)
+    sum.glm.slpex.full.mi <- summary(glm.slpex.full.mi)
+    theta_i <- append(theta_i, sum.glm.slpex.full.mi$coefficients[[2]])
+    var_win <- append(var_win, sum.glm.slpex.full.mi$coefficients[[4]]^2)
+  }
+  theta_i_avg <- mean(theta_i)
+  var_btwn <- (theta_i - theta_i_avg)^2
+  var_btwn_avg <- sum(var_btwn)/11
+  var_win_avg <- mean(var_win)
+  var_total <- var_win_avg + var_btwn_avg + var_btwn_avg/12
+  print(c(coef = theta_i_avg, standerr = sqrt(var_total), OR = exp(theta_i_avg)))
+}
+
+full.logit.mi.rc <- function(x){
+  theta_i <- c()
+  var_win <- c()
+  for(i in 1:12){
+    temp <- x %>% filter(.imp == i)
+    temp2 <- temp %>% filter(inAnalysis == 1) %>% 
+      mutate(targetex = as.factor(targetex)) %>% 
+      na.exclude()
+    slpex.results.full <- gComp(data = temp2, Y = "targetslp", X = "targetex", 
+                               Z = c("age", "raceeth", "educ", "marital", "household", 
+                                     "income", "snoring", "apnea", "bmi", "waist", "smoke", 
+                                     "alcohol", "depressed"), outcome.type = "binary", R = 200)
+    theta_i <- append(theta_i, slpex.results.full$results.df$Estimate[1])
+    std.err.ci <- ((slpex.results.full[["results.df"]][["97.5% CL"]][1] - 
+                      slpex.results.full[["results.df"]][["2.5% CL"]][1]) / 
+                     (qnorm(0.975)*2))
+    var_win <- append(var_win, std.err.ci^2)
+  }
+  theta_i_avg <- mean(theta_i)
+  var_btwn <- (theta_i - theta_i_avg)^2
+  var_btwn_avg <- sum(var_btwn)/11
+  var_win_avg <- mean(var_win)
+  var_total <- var_win_avg + var_btwn_avg + var_btwn_avg/12
+  std.err.pool <- sqrt(var_total)
+  ci_low = (theta_i_avg - (qnorm(0.975) * std.err.pool))
+  ci_high = (theta_i_avg + (qnorm(0.975) * std.err.pool))
+  print(c(coef = theta_i_avg, standerr = std.err.pool, ci_low = ci_low, ci_high = ci_high))
+}
+
 final.logistic <- function(x){
+  temp2 <- x %>% filter(inAnalysis == 1)
   glm.slpexcov2 = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
                         bmi + waist + factor(depressed),
-                      family = binomial(link = "logit"), data = x)
+                      family = binomial(link = "logit"), data = temp2)
   print(summary(glm.slpexcov2))
   print(exp(cbind(OR = coef(glm.slpexcov2), confint(glm.slpexcov2))))
   # ATE (risk difference - marginal effect)
   # Probability for each individual based on the model fit under targetex = 1
-  prob.1 <- x %>% mutate(targetex=1)
+  prob.1 <- temp2 %>% mutate(targetex=1)
   p1.pars <- mean(predict(glm.slpexcov2, prob.1, type = "response"), na.rm = T)
   # Probability for each individual based on the model fit under targetex = 0
-  prob.0 <- x %>% mutate(targetex=0)
+  prob.0 <- temp2 %>% mutate(targetex=0)
   p0.pars <- mean(predict(glm.slpexcov2, prob.0, type = "response"), na.rm = T)
   # Marginal probabilities
   pars.marg.prob <- (full.marg.prob = c(p1.pars, p0.pars))
@@ -193,13 +276,63 @@ final.logistic <- function(x){
   risk_diff.pars <- p1.pars - p0.pars
   print(risk_diff.pars)
   # Try Risk Communicator results
-  x <- x %>% mutate(targetex = as.factor(targetex))
-  slpex.results.pars <- gComp(data = x, Y = "targetslp", X = "targetex", 
+  temp2 <- temp2 %>% mutate(targetex = as.factor(targetex))
+  slpex.results.pars <- gComp(data = temp2, Y = "targetslp", X = "targetex", 
                               Z = c("age", "raceeth", "educ", "marital", "bmi", "waist", 
                                     "depressed"), outcome.type = "binary", R = 200)
   print(slpex.results.pars)
   risk_diff.pars <- as.numeric(slpex.results.pars$results.df[1,4])
   print(risk_diff.pars)
+}
+
+final.logit.mi<- function(x){
+  theta_i <- c()
+  var_win <- c()
+  for(i in 1:12){
+    temp <- x %>% filter(.imp == i)
+    temp2 <- temp %>% filter(inAnalysis == 1)
+    glm.slpex.final.mi = glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + factor(marital) + 
+                              bmi + waist + factor(depressed), 
+                            family = binomial(link = "logit"), data = temp, 
+                            weights = NULL, subset = inAnalysis == 1, na.action = na.exclude)
+    sum.glm.slpex.final.mi <- summary(glm.slpex.final.mi)
+    theta_i <- append(theta_i, sum.glm.slpex.final.mi$coefficients[[2]])
+    var_win <- append(var_win, sum.glm.slpex.final.mi$coefficients[[4]]^2)
+  }
+  theta_i_avg <- mean(theta_i)
+  var_btwn <- (theta_i - theta_i_avg)^2
+  var_btwn_avg <- sum(var_btwn)/11
+  var_win_avg <- mean(var_win)
+  var_total <- var_win_avg + var_btwn_avg + var_btwn_avg/12
+  print(c(coef = theta_i_avg, standerr = sqrt(var_total), OR = exp(theta_i_avg)))
+}
+
+final.logit.mi.rc <- function(x){
+  theta_i <- c()
+  var_win <- c()
+  for(i in 1:12){
+    temp <- x %>% filter(.imp == i)
+    temp2 <- temp %>% filter(inAnalysis == 1) %>% 
+      mutate(targetex = as.factor(targetex)) %>% 
+      na.exclude()
+    slpex.results.final <- gComp(data = temp2, Y = "targetslp", X = "targetex", 
+                                 Z = c("age", "raceeth", "educ", "marital", "bmi", "waist", 
+                                       "depressed"), outcome.type = "binary", R = 200)
+    theta_i <- append(theta_i, slpex.results.final$results.df$Estimate[1])
+    std.err.ci <- ((slpex.results.final[["results.df"]][["97.5% CL"]][1] - 
+                      slpex.results.final[["results.df"]][["2.5% CL"]][1]) / 
+                     (qnorm(0.975)*2))
+    var_win <- append(var_win, std.err.ci^2)
+  }
+  theta_i_avg <- mean(theta_i)
+  var_btwn <- (theta_i - theta_i_avg)^2
+  var_btwn_avg <- sum(var_btwn)/11
+  var_win_avg <- mean(var_win)
+  var_total <- var_win_avg + var_btwn_avg + var_btwn_avg/12
+  std.err.pool <- sqrt(var_total)
+  ci_low = (theta_i_avg - (qnorm(0.975) * std.err.pool))
+  ci_high = (theta_i_avg + (qnorm(0.975) * std.err.pool))
+  print(c(coef = theta_i_avg, standerr = std.err.pool, ci_low = ci_low, ci_high = ci_high))
 }
 
 ##### Compile datasets
@@ -314,8 +447,25 @@ imputed.05.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin 
 imputed.10.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
 
 ## Look at effect estimates
-# # Individual datasets
-# binary.logistic(unimputed.00.comp)
+# Unimputed data
+unimputed.bin.nona <- unimputed.00.comp %>% 
+  select(targetex, targetslp, inAnalysis) %>% 
+  na.omit()
+unimputed.full.nona <- unimputed.00.comp %>% 
+  select(targetex, targetslp, age, raceeth, educ, marital, household, income, snoring, apnea, 
+         bmi, waist, smoke, alcohol, depressed, inAnalysis) %>% 
+  na.omit()
+unimputed.final.nona <- unimputed.00.comp %>% 
+  select(targetex, targetslp, age, raceeth, educ, marital, bmi, waist, depressed, inAnalysis) %>% 
+  na.omit()
+# Logistic regressions with unimputed data (with no NAs)
+binary.logistic(unimputed.00.comp)
+binary.logistic(unimputed.bin.nona)
+full.logistic(unimputed.00.comp)
+full.logistic(unimputed.full.nona)
+final.logistic(unimputed.00.comp)
+final.logistic(unimputed.final.nona)
+
 # binary.logistic(imputed.02.comp)
 # 
 # unimputed.00.comp %>% filter(inAnalysis == 1) %>% binary.logistic()
@@ -370,7 +520,39 @@ summary(pool(bin.fit), conf.int = TRUE, exponentiate = TRUE)
 
 bin.logit.mi(long.imputed.comp)
 ### IT WORKS! My manual use of Rubin's Rules calculated correct estimate and standard error
+bin.logit.mi.rc(long.imputed.comp)
 
+full.logit.mi(long.imputed.comp)
+full.logit.mi.rc(long.imputed.comp)
+
+final.logit.mi(long.imputed.comp)
+final.logit.mi.rc(long.imputed.comp)
+
+# ### Test using RiskCommunicator to get risk difference
+# imp8.bin.rc <- imputed.08.comp %>% 
+#   filter(inAnalysis == 1) %>% 
+#   mutate(targetex = as.factor(targetex)) %>% 
+#   na.exclude()
+# imp8.results.bin.rc <- gComp(data = imp8.bin.rc, Y = "targetslp", X = "targetex", 
+#                              outcome.type = "binary", R = 200)
+# print(imp8.results.bin.rc)
+# sum.imp8.results.bin.rc <- summary(imp8.results.bin.rc$glm.result)
+# print(sum.imp8.results.bin.rc)
+# 
+# glm.imp8.bin.mi <- glm(targetslp ~ targetex, family = binomial(link = "logit"), data = imputed.08.comp, 
+#                           weights = NULL, subset = inAnalysis == 1, na.action = na.exclude)
+# sum.glm.imp8.bin.mi <- summary(glm.imp8.bin.mi)
+# sum.glm.imp8.bin.mi$coefficients[[2]]
+# sum.glm.imp8.bin.mi$coefficients[[4]]^2
+
+# imp8.rd <- imp8.results.bin.rc$results.df$Estimate[1]
+# imp8.rd
+# std.err.ci <- ((imp8.results.bin.rc[["results.df"]][["97.5% CL"]][1] - 
+#                  imp8.results.bin.rc[["results.df"]][["2.5% CL"]][1]) / 
+#                  (qnorm(0.975)*2))
+# std.err.ci^2
+
+### Using the MICE functions
 full.fit <- with(imputed_processed, glm(targetslp ~ targetex + age + factor(raceeth) + factor(educ) + 
                                           factor(marital) + factor(household) + factor(income) + 
                                           factor(snoring) + factor(apnea) + bmi + waist + 

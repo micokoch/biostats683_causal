@@ -152,6 +152,39 @@ run.tmle <- function(ObsData, SL.library){
   list(estimates.rd=estimates, predictions=predictions, H.AW=H.AW)
 }
 
+# ## TMLE with multiple imputation - incomplete
+# full.tmle.mi <- function(x){
+#   theta_i <- c()
+#   var_win <- c()
+#   for(i in 1:12){
+#     temp <- x %>% filter(.imp == i)
+#     temp <- temp %>% filter(inAnalysis == 1) %>% 
+#       mutate(targetex = as.factor(targetex))
+#     
+#     ltmle.mi.results.SL <- ltmle(data=temp, Anodes='A', Ynodes='Y', abar=list(1, 0), 
+#                                    SL.library=SL.library, estimate.time = T)
+#     
+#     slpex.results.full <- gComp(data = temp, Y = "targetslp", X = "targetex", 
+#                                 Z = c("age", "raceeth", "educ", "marital", "household", 
+#                                       "income", "snoring", "apnea", "bmi", "waist", "smoke", 
+#                                       "alcohol", "depressed"), outcome.type = "binary", R = 200)
+#     theta_i <- append(theta_i, slpex.results.full$results.df$Estimate[1])
+#     std.err.ci <- ((slpex.results.full[["results.df"]][["97.5% CL"]][1] - 
+#                       slpex.results.full[["results.df"]][["2.5% CL"]][1]) / 
+#                      (qnorm(0.975)*2))
+#     var_win <- append(var_win, std.err.ci^2)
+#   }
+#   theta_i_avg <- mean(theta_i)
+#   var_btwn <- (theta_i - theta_i_avg)^2
+#   var_btwn_avg <- sum(var_btwn)/11
+#   var_win_avg <- mean(var_win)
+#   var_total <- var_win_avg + var_btwn_avg + var_btwn_avg/12
+#   std.err.pool <- sqrt(var_total)
+#   ci_low = (theta_i_avg - (qnorm(0.975) * std.err.pool))
+#   ci_high = (theta_i_avg + (qnorm(0.975) * std.err.pool))
+#   print(c(coef = theta_i_avg, standerr = std.err.pool, ci_low = ci_low, ci_high = ci_high))
+# }
+
 
 ##### Read in and format datasets
 ## Read in dataset
