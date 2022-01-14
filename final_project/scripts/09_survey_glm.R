@@ -192,6 +192,7 @@ full.logit.survey.single <- function(x){
                       theta_i = theta_i, var_win = var_win)
   return(survey.results)
 }
+
 # Full logistic survey function for multiple imputation
 full.logit.survey.mi <- function(x){
   # Initialize lists to be used in for loop
