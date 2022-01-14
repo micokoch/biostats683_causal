@@ -597,6 +597,10 @@ count(temp2)
 unadj.raw <- gComp(data = temp2, Y = "targetslp", X = "targetex", 
                    outcome.type = "binary", R = 200)
 unadj.raw
+
+unadj.complete.rd.boot <- as.numeric(unadj.raw[["boot.result"]][[1]])
+save(unadj.complete.rd.boot, file = "unadj.complete.rd.boot.Rdata")
+
 # ATE = 0.042 (0.012, 0.069)
 std.err.ci(unadj.raw)
 # Standard error: 0.01449134
@@ -629,6 +633,9 @@ nosnoap.raw
 # ATE = 0.037 (0.007, 0.072)
 std.err.ci(nosnoap.raw)
 # Standard error: 0.0165915
+adj.complete.rd.boot <- as.numeric(nosnoap.raw[["boot.result"]][[1]])
+save(adj.complete.rd.boot, file = "adj.complete.rd.boot.Rdata")
+
 
 
 #### MI analyses

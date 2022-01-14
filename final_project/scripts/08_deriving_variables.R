@@ -447,14 +447,21 @@ imputed.05.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin 
 imputed.10.comp %>% select(targetex, targetslp) %>% table %>% prop.table(margin = 2)
 
 ## Look at effect estimates
+# Read in dataset
+unimputed.00.comp <- read.csv("unimputed.00.comp.csv")
+
 # Unimputed data
 unimputed.bin.nona <- unimputed.00.comp %>% 
   select(targetex, targetslp, inAnalysis) %>% 
   na.omit()
+unimputed.bin.nona %>% filter(inAnalysis == 1) %>% count()
+
 unimputed.full.nona <- unimputed.00.comp %>% 
-  select(targetex, targetslp, age, raceeth, educ, marital, household, income, snoring, apnea, 
+  select(targetex, targetslp, age, raceeth, educ, marital, household, income, 
          bmi, waist, smoke, alcohol, depressed, inAnalysis) %>% 
   na.omit()
+unimputed.full.nona %>% filter(inAnalysis == 1) %>% count()
+
 unimputed.final.nona <- unimputed.00.comp %>% 
   select(targetex, targetslp, age, raceeth, educ, marital, bmi, waist, depressed, inAnalysis) %>% 
   na.omit()
